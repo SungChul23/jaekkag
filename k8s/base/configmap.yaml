@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce
+data:
+  AWS_REGION: "ap-northeast-2"
+  DB_PORT: "3306"
+  DB_NAME: "ecommerce"
+  KINESIS_STREAM_NAME: "ecommerce-order-events"
+  LOG_LEVEL: "INFO"
