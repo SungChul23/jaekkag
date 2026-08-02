@@ -12,7 +12,8 @@ spec:
   selector:
     app: order-api      # 이 라벨을 가진 Pod들(order-api Deployment가 만든 Pod)로 트래픽 전달
   ports:
-    - port: 80            # Service 자체가 클러스터 내부에 노출하는 포트
+    - name : http
+      port: 80            # Service 자체가 클러스터 내부에 노출하는 포트
       targetPort: 8000     # 실제 전달되는 대상은 컨테이너의 8000번 포트
 ---
 apiVersion: autoscaling/v2

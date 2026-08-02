@@ -1,4 +1,4 @@
-# [테스트] ecommerce-realtime 실제 배포 런북 
+# ecommerce-realtime 실제 배포 런북
 
 이 순서대로 하면 실제 AWS에 VPC/EKS/RDS/ECR/Kinesis가 뜨고,
 주문 -> Outbox -> Kinesis -> 재고 차감까지 진짜로 동작하는 걸 확인할 수 있습니다.
@@ -14,7 +14,7 @@
 ```bash
 cd terraform/vpc     && terraform init && terraform apply -auto-approve
 cd ../eks             && terraform init && terraform apply -auto-approve   # 15~20분 소요
-cd ../rds             && terraform init && terraform apply -auto-approve
+cd ../rds             && terraform init && terraform apply -auto-approve -var="db_password=원하는비밀번호"
 cd ../ecr             && terraform init && terraform apply -auto-approve
 cd ../kinesis         && terraform init && terraform apply -auto-approve
 cd ../irsa            && terraform init && terraform apply -auto-approve
@@ -99,9 +99,40 @@ kubectl logs -n ecommerce -l app=outbox-publisher -f
 kubectl logs -n ecommerce -l app=inventory-worker -f
 ```
 
-## 8. 정리 (반드시 실행)
+## 9. 모니터링 (Prometheus + Grafana)
 
 ```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace
+
+kubectl apply -f k8s/outbox-publisher/service.yaml
+kubectl apply -f k8s/inventory-worker/service.yaml
+kubectl apply -f k8s/monitoring/servicemonitors.yaml
+```
+
+Grafana 접속 (로컬 포트포워딩):
+```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+```
+브라우저에서 `http://localhost:3000` 접속. 기본 계정은 `admin` / 비밀번호는 아래로 조회:
+```bash
+kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+Prometheus 자체 UI로 우리 메트릭이 잘 잡히는지 먼저 확인하고 싶으면:
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+```
+`http://localhost:9090` → Status → Targets 에서 `order-api`, `outbox-publisher`, `inventory-worker`가 `UP`으로 뜨는지 확인.
+
+## 10. 정리 (반드시 실행)
+
+```bash
+helm uninstall prometheus -n monitoring
+kubectl delete namespace monitoring
+
 kubectl delete -f k8s/order-api/ -f k8s/outbox-publisher/ -f k8s/inventory-worker/
 kubectl delete -f k8s/base/
 
