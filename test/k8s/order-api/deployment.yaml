@@ -1,0 +1,49 @@
+# Deployment: 지정한 개수(replicas)만큼 Pod를 계속 유지시켜주는 오브젝트
+# Pod가 죽으면 자동으로 새로 띄워주고, 이미지 버전을 바꾸면 롤링 업데이트도 담당함
+# 이 파일은 주문을 받는 API 서버(order-api)를 배포하는 설정
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-api          # Deployment 이름
+  namespace: ecommerce
+  labels:
+    app: order-api          # 이 Deployment를 식별하는 라벨 (Service의 selector와 연결됨)
+spec:
+  replicas: 2               # 항상 유지할 Pod(컨테이너 인스턴스) 개수 = 2개
+  selector:
+    matchLabels:
+      app: order-api         # 아래 template의 라벨과 반드시 일치해야 Deployment가 Pod를 관리할 수 있음
+  template:                   # 실제로 생성될 Pod의 스펙(설계도)
+    metadata:
+      labels:
+        app: order-api         # Service가 이 라벨을 기준으로 트래픽을 보낼 Pod를 찾음
+    spec:
+      containers:
+        - name: order-api
+          image: "<ECR_ORDER_API_REPO_URL>:<GIT_SHA>"   # 실제 배포 시 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
+          ports:
+            - containerPort: 8000   # 컨테이너 내부에서 애플리케이션이 리스닝하는 포트
+          envFrom:                   # ConfigMap/Secret에 정의된 값들을 전부 환경변수로 주입
+            - configMapRef:
+                name: ecommerce-config
+            - secretRef:
+                name: ecommerce-secret
+          resources:                 # Pod가 사용할 CPU/메모리 자원 설정
+            requests:                 # 스케줄링 시 최소 보장받는 자원량
+              cpu: "100m"              # 0.1 vCPU
+              memory: "128Mi"
+            limits:                    # 초과 사용을 막는 최대 허용치 (초과 시 CPU는 스로틀링, 메모리는 OOM Kill)
+              cpu: "500m"              # 0.5 vCPU
+              memory: "256Mi"
+          readinessProbe:             # 트래픽을 받을 준비가 됐는지 검사 (실패 시 Service에서 제외됨)
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5     # 컨테이너 시작 후 첫 검사까지 대기 시간
+            periodSeconds: 5           # 검사 주기
+          livenessProbe:              # 컨테이너가 살아있는지 검사 (실패 반복 시 컨테이너 재시작)
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10

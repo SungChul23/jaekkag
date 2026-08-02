@@ -1,0 +1,15 @@
+# ConfigMap: 비밀번호가 아닌 일반 설정값(환경변수 등)을 담아두는 오브젝트
+# 여기 담긴 값들은 각 서비스(order-api, inventory-worker, outbox-publisher)의
+# envFrom.configMapRef 를 통해 컨테이너 환경변수로 그대로 주입됨
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config   # 다른 리소스가 이 이름으로 configMapRef 참조
+  namespace: ecommerce
+data:                        # 실제 설정값 (key: value), 모두 문자열로 저장됨
+  AWS_REGION: "us-east-1"                              # 사용할 AWS 리전
+  DB_HOST: "<terraform output: rds_endpoint 로 교체>"    # RDS(MySQL) 접속 주소. 배포 전 실제 엔드포인트로 교체 필요
+  DB_PORT: "3306"                                       # MySQL 기본 포트
+  DB_NAME: "ecommerce"                                  # 접속할 데이터베이스 이름
+  KINESIS_STREAM_NAME: "test-ecommerce-order-events"    # 주문 이벤트를 주고받을 Kinesis 스트림 이름
+  LOG_LEVEL: "INFO"                                     # 애플리케이션 로그 출력 레벨
