@@ -8,7 +8,7 @@ metadata:
   namespace: ecommerce
 data:                        # 실제 설정값 (key: value), 모두 문자열로 저장됨
   AWS_REGION: "us-east-1"                              # 사용할 AWS 리전
-  DB_HOST: "<terraform output: rds_endpoint 로 교체>"    # RDS(MySQL) 접속 주소. 배포 전 실제 엔드포인트로 교체 필요
+  DB_HOST: "test-ecommerce-dev-rds.c43ekyi6yiie.us-east-1.rds.amazonaws.com"    # RDS(MySQL) 접속 주소. 배포 전 실제 엔드포인트로 교체 필요
   DB_PORT: "3306"                                       # MySQL 기본 포트
   DB_NAME: "ecommerce"                                  # 접속할 데이터베이스 이름
   KINESIS_STREAM_NAME: "test-ecommerce-order-events"    # 주문 이벤트를 주고받을 Kinesis 스트림 이름

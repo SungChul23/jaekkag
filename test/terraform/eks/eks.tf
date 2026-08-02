@@ -33,6 +33,7 @@ module "eks" {
   subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnets
 
   cluster_endpoint_public_access = true
+  enable_cluster_creator_admin_permissions = true   
 
   enable_irsa = true
 

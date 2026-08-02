@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: order-api
-          image: "<ECR_ORDER_API_REPO_URL>:<GIT_SHA>"   # 실제 배포 시 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
+          image: "827913617635.dkr.ecr.us-east-1.amazonaws.com/order-api"   # 실제 배포 시 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
           ports:
             - containerPort: 8000   # 컨테이너 내부에서 애플리케이션이 리스닝하는 포트
           envFrom:                   # ConfigMap/Secret에 정의된 값들을 전부 환경변수로 주입

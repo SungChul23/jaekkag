@@ -11,7 +11,7 @@ DB_PORT = int(os.environ.get("DB_PORT", "3306"))
 DB_NAME = os.environ.get("DB_NAME", "ecommerce")
 DB_USER = os.environ.get("DB_USER", "appuser")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
-KINESIS_STREAM_NAME = os.environ.get("KINESIS_STREAM_NAME", "ecommerce-order-events")
+KINESIS_STREAM_NAME = os.environ.get("KINESIS_STREAM_NAME", "test-ecommerce-order-events")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "8002"))
 

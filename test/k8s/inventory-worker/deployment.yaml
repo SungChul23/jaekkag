@@ -10,7 +10,7 @@ metadata:
   annotations:
     # IRSA(IAM Roles for Service Accounts): 이 어노테이션 덕분에 이 ServiceAccount를 쓰는 Pod는
     # AWS 액세스 키 없이도 지정된 IAM Role의 권한(예: Kinesis 읽기 등)을 그대로 사용할 수 있음
-    eks.amazonaws.com/role-arn: "<terraform output: inventory_worker_role_arn 로 교체>"   # 배포 전 실제 IAM Role ARN으로 교체 필요
+    eks.amazonaws.com/role-arn: "arn:aws:iam::827913617635:role/ecommerce-dev-inventory-worker-role"   # 배포 전 실제 IAM Role ARN으로 교체 필요
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,7 +32,7 @@ spec:
       serviceAccountName: inventory-worker   # 위에서 만든 ServiceAccount를 이 Pod에 연결 (IRSA로 AWS 권한 획득)
       containers:
         - name: inventory-worker
-          image: "<ECR_INVENTORY_WORKER_REPO_URL>:<GIT_SHA>"   # 배포 전 실제 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
+          image: "827913617635.dkr.ecr.us-east-1.amazonaws.com/test-inventory-worker:fix1"   # 배포 전 실제 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
           ports:
             - containerPort: 8002   # 외부 Service로 노출되진 않지만 헬스체크/메트릭 등 내부 용도로 사용하는 포트로 보임
           envFrom:                   # ConfigMap/Secret 값을 통째로 환경변수로 주입 (DB 접속 정보, Kinesis 스트림 이름 등)
