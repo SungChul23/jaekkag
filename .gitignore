@@ -1,0 +1,22 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Kubernetes secrets (secret.example.yaml만 git에 유지)
+k8s/base/secret.yaml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 기타
+.DS_Store
+*.log
