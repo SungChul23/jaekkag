@@ -9,7 +9,7 @@ crash.log
 crash.*.log
 
 # Kubernetes secrets (secret.example.yaml만 git에 유지)
-k8s/base/secret.yaml 
+**/secret.yaml
 
 # Python
 __pycache__/
