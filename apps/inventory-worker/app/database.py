@@ -40,3 +40,32 @@ def get_db_connection() -> Connection:
         read_timeout=10,
         write_timeout=10,
     )
+
+# 초기화 함수 추가
+def initialize_database() -> None:
+    """Inventory Worker에서 사용할 테이블과 샘플 재고를 생성한다."""
+
+    schema_path = BASE_DIR / "app" / "schema.sql"
+    sql_text = schema_path.read_text(encoding="utf-8")
+
+    statements = [
+        statement.strip()
+        for statement in sql_text.split(";")
+        if statement.strip()
+    ]
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            for statement in statements:
+                cursor.execute(statement)
+
+        connection.commit()
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()

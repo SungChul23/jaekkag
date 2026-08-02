@@ -3,9 +3,11 @@
 import logging
 import os
 import time
+import json
+from pathlib import Path
 
 from app.database import get_db_connection
-
+from app.worker import process_order_event
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -39,6 +41,13 @@ def wait_for_database() -> None:
             logger.exception("RDS 연결 실패, 10초 후 재시도")
             time.sleep(10)
 
+def load_sample_event() -> dict:
+    project_root = Path(__file__).resolve().parent.parent
+    event_path = project_root / "tests" / "sample_event.json"
+
+    with event_path.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
 
 def main() -> None:
     logger.info("Inventory Worker 시작")
@@ -48,7 +57,13 @@ def main() -> None:
     while True:
         logger.info("Kinesis 이벤트 대기 중")
         time.sleep(30)
+        
+def main() -> None:
+    event = load_sample_event()
 
+    result = process_order_event(event)
+
+    print(f"이벤트 처리 결과: {result}")
 
 if __name__ == "__main__":
     main()
