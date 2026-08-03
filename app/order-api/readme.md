@@ -28,3 +28,12 @@
 - [ ] Ingress 작성
 - [ ] HPA 적용
 - [ ] k6 테스트
+
+## ## API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /orders | 주문 등록 |
+| GET | /health | 서비스 상태 확인 |
+| GET | /metrics | Prometheus 메트릭 |
+| GET | /ready | Kubernetes Readiness Probe 전용 |
