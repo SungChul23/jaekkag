@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce
+data:
+  AWS_REGION: "us-east-1"
+  DB_PORT: "3306"
+  DB_NAME: "ecommerce"
+  KINESIS_STREAM_NAME: "ecommerce-order-events"
+  LOG_LEVEL: "INFO"
+  METRICS_PORT: "8000" # 보충
+  DB_HOST: "replace-with-rds-endpoint" # 보충
+  ##Order API에서 DB 연결을 위해 ecommerce-config에 DB_HOST가 필요합니다. 
+  ## 공통 규격에 있는 METRICS_PORT=8000도 같이 추가하면 좋을 것 같습니다.
