@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-ingress
+  namespace: ecommerce
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+
+  rules:
+    - http:
+        paths:
+          - path: /orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-api-service
+                port:
+                  number: 80
+
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: order-api-service
+                port:
+                  number: 80
+
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: order-api-service
+                port:
+                  number: 80
+
+# 这个文件依赖 4 号安装 AWS Load Balancer Controller。
+# ingressClassName: alb 必须和全组的 ALB 规范一致。
