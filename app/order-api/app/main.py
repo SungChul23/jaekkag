@@ -1,9 +1,15 @@
-from itertools import count
-from time import perf_counter
+# main.py 
+# 启动 FastAPI、注册路由、health、ready、metrics
+# schemas.py 请求和响应格式
+# metrics.py Prometheus 指标
+# routers/orders.py POST /orders 业务逻辑
+# models.py orders、outbox_events 数据库模型
+# database.py MySQL 连接
 
-from fastapi import FastAPI, HTTPException, Request, status
-from prometheus_client import Counter, Histogram, make_asgi_app
-from pydantic import BaseModel, Field
+from fastapi import FastAPI
+from prometheus_client import make_asgi_app
+
+from app.routers.orders import router as orders_router
 
 
 app = FastAPI(
@@ -11,50 +17,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-order_id_generator = count(start=1001)
-
-
-# Prometheus metrics
-ORDER_REQUESTS_TOTAL = Counter(
-    "order_requests_total",
-    "Total number of order requests",
-)
-
-ORDER_SUCCESS_TOTAL = Counter(
-    "order_success_total",
-    "Total number of successfully received orders",
-)
-
-ORDER_FAILURE_TOTAL = Counter(
-    "order_failure_total",
-    "Total number of failed order requests",
-)
-
-ORDER_REQUEST_DURATION_SECONDS = Histogram(
-    "order_request_duration_seconds",
-    "Order API request duration in seconds",
-)
-
-
-class OrderCreateRequest(BaseModel):
-    product_id: int = Field(
-        ...,
-        gt=0,
-        description="상품 ID",
-        examples=[10],
-    )
-    quantity: int = Field(
-        ...,
-        gt=0,
-        le=100,
-        description="주문 수량",
-        examples=[2],
-    )
-
-
-class OrderCreateResponse(BaseModel):
-    order_id: int
-    status: str
+app.include_router(orders_router)
 
 
 @app.get("/health")
@@ -65,38 +28,6 @@ def health_check():
 @app.get("/ready")
 def readiness_check():
     return {"status": "READY"}
-
-
-@app.post(
-    "/orders",
-    response_model=OrderCreateResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_order(order: OrderCreateRequest):
-    ORDER_REQUESTS_TOTAL.inc()
-
-    started_at = perf_counter()
-
-    try:
-        # 临时模拟商品不存在，连接数据库后会删除
-        if order.product_id == 999:
-            ORDER_FAILURE_TOTAL.inc()
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Product not found",
-            )
-
-        order_id = next(order_id_generator)
-        ORDER_SUCCESS_TOTAL.inc()
-
-        return OrderCreateResponse(
-            order_id=order_id,
-            status="RECEIVED",
-        )
-
-    finally:
-        duration = perf_counter() - started_at
-        ORDER_REQUEST_DURATION_SECONDS.observe(duration)
 
 
 metrics_app = make_asgi_app()

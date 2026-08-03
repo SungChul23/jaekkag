@@ -1,0 +1,2 @@
+-- Orders and outbox events are generated dynamically
+-- through POST /orders requests and k6 load tests.
