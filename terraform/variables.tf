@@ -43,3 +43,12 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+# ============================================================
+# EKS 추가 관리자 IAM Role 목록
+# ============================================================
+variable "additional_admin_role_arns" {
+  description = "EKS 추가 관리자 IAM ROLE ARN 목록"
+  type        = set(string)
+  default     = []
+}
