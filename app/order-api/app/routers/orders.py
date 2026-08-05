@@ -38,7 +38,7 @@ def create_order(
         order = Order(
             product_id=product_id,
             quantity=order_request.quantity,
-            status=OrderStatus.CREATED,
+            order_status=OrderStatus.CREATED,
         )
 
         db.add(order)
@@ -72,7 +72,7 @@ def create_order(
 
         return OrderCreateResponse(
             order_id=order.order_id,
-            status=order.status.value,
+            status=order.order_status.value,
         )
 
     except SQLAlchemyError as exc:

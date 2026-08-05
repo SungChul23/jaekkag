@@ -39,7 +39,7 @@ class Order(Base):
         nullable=False,
     )
 
-    status = Column(
+    order_status = Column(
         Enum(
             OrderStatus,
             name="order_status",

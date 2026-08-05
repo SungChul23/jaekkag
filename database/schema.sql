@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS orders (
 
     quantity INT NOT NULL,
 
-    status ENUM(
+    order_status ENUM(
         'CREATED',
         'CONFIRMED',
         'CANCELLED'
