@@ -1,0 +1,65 @@
+# 이 파일은 --- 로 구분된 3개의 리소스를 포함함
+# 1) Service                    : Pod들 앞단에서 트래픽을 분산해주는 고정 진입점
+# 2) HorizontalPodAutoscaler(HPA): 부하에 따라 Pod 개수를 자동으로 늘리고 줄여줌
+# 3) Ingress                    : 클러스터 외부(인터넷)에서 들어오는 HTTP 요청을 Service로 연결
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-api
+  namespace: ecommerce
+spec:
+  selector:
+    app: order-api      # 이 라벨을 가진 Pod들(order-api Deployment가 만든 Pod)로 트래픽 전달
+  ports:
+    - name : http
+      port: 80            # Service 자체가 클러스터 내부에 노출하는 포트
+      targetPort: 8000     # 실제 전달되는 대상은 컨테이너의 8000번 포트
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler   # HPA: CPU/메모리 등의 지표를 보고 Deployment의 replicas를 자동 조절
+metadata:
+  name: order-api-hpa
+  namespace: ecommerce
+spec:
+  scaleTargetRef:                # 오토스케일링 대상 지정
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-api               # order-api Deployment를 대상으로 함
+  minReplicas: 2                  # 최소 Pod 개수 (Deployment의 replicas: 2와 동일하게 맞춰둠)
+  maxReplicas: 8                  # 최대로 늘어날 수 있는 Pod 개수
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu                 # CPU 사용률을 기준으로 스케일링
+        target:
+          type: Utilization
+          averageUtilization: 60   # 평균 CPU 사용률이 60%를 넘으면 Pod를 늘림 (요청값 대비 비율)
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress                     # Ingress: 외부 트래픽을 클러스터 내부 Service로 라우팅하는 규칙
+metadata:
+  name: order-api-ingress
+  namespace: ecommerce
+  annotations:                     # AWS Load Balancer Controller가 이 값을 보고 실제 ALB를 생성/설정함
+    kubernetes.io/ingress.class: alb                  # ALB(Application Load Balancer) 기반 Ingress 사용
+    alb.ingress.kubernetes.io/scheme: internet-facing  # 인터넷에서 바로 접근 가능한 퍼블릭 ALB로 생성
+    alb.ingress.kubernetes.io/target-type: ip          # ALB가 Pod의 IP로 직접 트래픽 전달 (EKS에서 권장 방식)
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /orders           # /orders 로 들어오는 요청을
+            pathType: Prefix         # 이 경로로 시작하는 모든 요청을 매칭
+            backend:
+              service:
+                name: order-api      # order-api Service로 전달
+                port:
+                  number: 80
+          - path: /health            # 헬스체크용 경로도 동일하게 order-api Service로 연결
+            pathType: Prefix
+            backend:
+              service:
+                name: order-api
+                port:
+                  number: 80

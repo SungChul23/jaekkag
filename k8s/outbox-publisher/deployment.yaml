@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: outbox-publisher
+  namespace: ecommerce
+  annotations:
+    # terraform/irsa 적용 후 output 값으로 교체 (4번 EKS 완성 후 작업)
+    eks.amazonaws.com/role-arn: "<terraform output: outbox_publisher_role_arn 로 교체>"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbox-publisher
+  namespace: ecommerce
+  labels:
+    app: outbox-publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: outbox-publisher
+  template:
+    metadata:
+      labels:
+        app: outbox-publisher
+    spec:
+      serviceAccountName: outbox-publisher
+      containers:
+        - name: outbox-publisher
+          image: "<ECR_OUTBOX_PUBLISHER_REPO_URL>:<GIT_SHA>"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: ecommerce-config
+            - secretRef:
+                name: ecommerce-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"

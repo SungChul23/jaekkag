@@ -1,0 +1,50 @@
+# kube-prometheus-stack을 release 이름 'prometheus'로 설치했다는 전제.
+# (헬름 릴리즈 이름이 다르면 release: prometheus 라벨을 그 이름으로 바꿔야 함)
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-api
+  namespace: ecommerce
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: order-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: outbox-publisher
+  namespace: ecommerce
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: outbox-publisher
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: inventory-worker
+  namespace: ecommerce
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: inventory-worker
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

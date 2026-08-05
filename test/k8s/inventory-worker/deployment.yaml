@@ -1,0 +1,52 @@
+# 이 파일은 --- 로 구분된 2개의 리소스를 포함함
+# 1) ServiceAccount : 이 워커 Pod가 사용할 쿠버네티스 계정 (AWS IAM 권한과 연결하기 위함)
+# 2) Deployment      : Kinesis 등에서 이벤트를 받아 재고를 차감하는 inventory-worker 배포 설정
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-worker   # 아래 Deployment의 serviceAccountName에서 이 이름으로 참조
+  namespace: ecommerce
+  annotations:
+    # IRSA(IAM Roles for Service Accounts): 이 어노테이션 덕분에 이 ServiceAccount를 쓰는 Pod는
+    # AWS 액세스 키 없이도 지정된 IAM Role의 권한(예: Kinesis 읽기 등)을 그대로 사용할 수 있음
+    eks.amazonaws.com/role-arn: "arn:aws:iam::827913617635:role/ecommerce-dev-inventory-worker-role"   # 배포 전 실제 IAM Role ARN으로 교체 필요
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-worker
+  namespace: ecommerce
+  labels:
+    app: inventory-worker
+spec:
+  replicas: 1                # 재고 차감처럼 순서/중복 처리에 민감한 워커라 우선 1개만 유지 (order-api의 2개와 차이)
+  selector:
+    matchLabels:
+      app: inventory-worker    # 아래 template의 라벨과 반드시 일치해야 Deployment가 Pod를 관리할 수 있음
+  template:
+    metadata:
+      labels:
+        app: inventory-worker   # Service로 트래픽을 받는 구조가 아니라 주로 식별/모니터링용 라벨
+    spec:
+      serviceAccountName: inventory-worker   # 위에서 만든 ServiceAccount를 이 Pod에 연결 (IRSA로 AWS 권한 획득)
+      containers:
+        - name: inventory-worker
+          image: "827913617635.dkr.ecr.us-east-1.amazonaws.com/test-inventory-worker:fix1"   # 배포 전 실제 ECR 저장소 URL과 커밋 SHA(이미지 태그)로 치환
+          ports:
+            - containerPort: 8002   # 외부 Service로 노출되진 않지만 헬스체크/메트릭 등 내부 용도로 사용하는 포트로 보임
+          envFrom:                   # ConfigMap/Secret 값을 통째로 환경변수로 주입 (DB 접속 정보, Kinesis 스트림 이름 등)
+            - configMapRef:
+                name: ecommerce-config
+            - secretRef:
+                name: ecommerce-secret
+          resources:                 # Pod가 사용할 CPU/메모리 자원 설정
+            requests:                 # 스케줄링 시 최소 보장받는 자원량
+              cpu: "100m"              # 0.1 vCPU
+              memory: "128Mi"
+            limits:                    # 초과 사용을 막는 최대 허용치 (초과 시 CPU는 스로틀링, 메모리는 OOM Kill)
+              cpu: "300m"              # 0.3 vCPU
+              memory: "256Mi"
+          # 참고: order-api와 달리 readinessProbe/livenessProbe가 없음.
+          # 외부 트래픽을 받는 API가 아니라 백그라운드로 이벤트를 소비하는 워커라 생략된 것으로 보이며,
+          # 필요하다면 추후 livenessProbe(예: exec 커맨드나 헬스 엔드포인트) 추가를 고려할 수 있음
