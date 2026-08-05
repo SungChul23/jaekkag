@@ -1,16 +1,13 @@
 # Terraform
-**/.terraform/
+.terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!*.tfvars.example
-.terraform.lock.hcl
 crash.log
-crash.*.log
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
 .env
@@ -20,10 +17,8 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
-*.log
 
-# Kubernetes secrets (secret.example.yaml만 git에 유지)
-**/secret.yaml
+# Kubernetes secrets
 secret.yaml
 *-secret.yaml
 !secret.example.yaml
