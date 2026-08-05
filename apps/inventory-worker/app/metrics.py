@@ -3,20 +3,25 @@ from prometheus_client import Counter, Histogram
 
 inventory_processed_total = Counter(
     "inventory_processed_total",
-    "정상적으로 재고 처리가 완료된 이벤트 수",
+    "Number of inventory events committed with a SUCCESS result",
+)
+
+inventory_out_of_stock_total = Counter(
+    "inventory_out_of_stock_total",
+    "Number of inventory events committed with an OUT_OF_STOCK result",
 )
 
 inventory_duplicate_events_total = Counter(
     "inventory_duplicate_events_total",
-    "중복으로 판단된 주문 이벤트 수",
+    "Number of inventory events identified as duplicates",
 )
 
 inventory_failed_total = Counter(
     "inventory_failed_total",
-    "재고 처리 중 실패한 이벤트 수",
+    "Number of inventory events committed with a FAILED result",
 )
 
 inventory_processing_duration_seconds = Histogram(
     "inventory_processing_duration_seconds",
-    "주문 이벤트 한 건을 처리하는 데 걸린 시간",
+    "Time spent processing one inventory event",
 )

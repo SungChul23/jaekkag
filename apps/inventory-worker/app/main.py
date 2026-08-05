@@ -3,6 +3,8 @@ import logging
 import os
 import time
 
+from prometheus_client import start_http_server
+
 from app.database import get_db_connection
 
 
@@ -49,6 +51,10 @@ def wait_for_database() -> None:
 
 def main() -> None:
     logger.info("Inventory Worker 시작")
+
+    metrics_port = int(os.getenv("METRICS_PORT", "8002"))
+    start_http_server(metrics_port)
+    logger.info("Prometheus metrics server started on port %s", metrics_port)
 
     wait_for_database()
 

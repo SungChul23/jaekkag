@@ -2,6 +2,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 from app.database import get_db_connection
+from app.metrics import (
+    inventory_duplicate_events_total,
+    inventory_failed_total,
+    inventory_out_of_stock_total,
+    inventory_processed_total,
+    inventory_processing_duration_seconds,
+)
 
 
 REQUIRED_FIELDS = {
@@ -80,6 +87,11 @@ def validate_order_event(event: dict[str, Any]) -> None:
 def process_order_event(event: dict[str, Any]) -> str:
     """주문 이벤트를 처리하고 재고를 차감한다."""
 
+    with inventory_processing_duration_seconds.time():
+        return _process_order_event(event)
+
+
+def _process_order_event(event: dict[str, Any]) -> str:
     validate_order_event(event)
 
     event_id = event["event_id"]
@@ -107,6 +119,7 @@ def process_order_event(event: dict[str, Any]) -> str:
 
             if existing_event:
                 connection.rollback()
+                inventory_duplicate_events_total.inc()
                 return "DUPLICATE"
 
             # 2. 상품 존재 여부와 모델·색상 조합 확인
@@ -183,6 +196,14 @@ def process_order_event(event: dict[str, Any]) -> str:
             )
 
         connection.commit()
+
+        if result == "SUCCESS":
+            inventory_processed_total.inc()
+        elif result == "OUT_OF_STOCK":
+            inventory_out_of_stock_total.inc()
+        elif result == "FAILED":
+            inventory_failed_total.inc()
+
         return result
 
     except Exception:
