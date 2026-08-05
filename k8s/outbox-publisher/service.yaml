@@ -5,9 +5,28 @@ metadata:
   namespace: ecommerce
   labels:
     app: outbox-publisher
+    project: ecommerce
+    environment: dev
 spec:
+  # Headless Service (clusterIP: None).
+  #
+  # replicas=3이라 일반 Service(ClusterIP 방식)로 두면
+  # Prometheus가 접근할 때 파드 3개 중 랜덤 1개로만 라우팅되어
+  # 나머지 2개 파드의 메트릭을 못 읽어오는 문제가 생김.
+  #
+  # Headless로 설정하면 단일 IP로 뭉치지 않고 파드 3개의
+  # 개별 IP를 DNS로 각각 조회할 수 있어, Prometheus가
+  # 3개 파드 전부를 개별적으로 스크레이핑 가능해짐.
+  #
+  # 참고: 이 Service는 Publisher의 DB 폴링/Kinesis 발행 동작과는
+  # 무관함 (Publisher는 트래픽을 "받는" 컴포넌트가 아니라
+  # 능동적으로 폴링·발행만 하며, DB·Kinesis 연결은 이 Service를
+  # 거치지 않고 코드에서 직접 이루어짐. 순수하게 메트릭 수집용).
+  clusterIP: None
+
   selector:
     app: outbox-publisher
+
   ports:
     - name: metrics
       port: 8001
