@@ -6,7 +6,7 @@ data "aws_availability_zones" "available" {
 
 locals {
   # AWS 리소스 이름에 공통으로 사용할 접두사
-  # 결과 예시: ecommerce-dev-vpc
+  # 결과 예시: jaekkak-open-dev-vpc
   name_prefix = "${var.project_name}-${var.environment}"
 
   # 고가용성을 위해 현재 Region의 가용영역 중 2개 사용
