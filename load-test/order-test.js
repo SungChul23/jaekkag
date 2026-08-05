@@ -1,9 +1,14 @@
-// 0 → 10 个虚拟用户
-// 10 → 50
-// 50 → 100 最后降回 0
+// 부하 테스트 단계
+// 0 → 10 VUs
+// 10 → 50 VUs
+// 50 → 100 VUs
+// 마지막에는 0 VUs로 감소
 
-// 每个虚拟用户持续发送：
-// { "product_id": 10、11 或 12,"quantity": 1～3}
+// 각 가상 사용자는 다음 형식의 주문 요청을 반복 전송
+// {
+//   "product_id": 101~104, 201~204, 301~304 중 하나,
+//   "quantity": 1~3
+// }
 
 import http from "k6/http";
 import { check, sleep } from "k6";
@@ -22,7 +27,15 @@ export const options = {
   },
 };
 
-const productIds = [10, 11, 12];
+// 3개 기종 × 4개 색상 = 총 12개 상품
+// 101~104: Fold
+// 201~204: Flip
+// 301~304: Ultra
+const productIds = [
+  101, 102, 103, 104,
+  201, 202, 203, 204,
+  301, 302, 303, 304,
+];
 
 export default function () {
   const productId =
@@ -50,6 +63,7 @@ export default function () {
 
   check(response, {
     "status is 201": (res) => res.status === 201,
+
     "response has order_id": (res) => {
       try {
         return res.json("order_id") !== undefined;
@@ -57,6 +71,7 @@ export default function () {
         return false;
       }
     },
+
     "status is RECEIVED": (res) => {
       try {
         return res.json("status") === "RECEIVED";
