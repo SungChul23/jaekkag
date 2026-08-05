@@ -8,15 +8,22 @@
 crash.log
 crash.*.log
 
-# Kubernetes secrets (secret.example.yaml만 git에 유지)
-**/secret.yaml
-
 # Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+.env
 
-# 기타
+# IDE / OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
 *.log
+
+# Kubernetes secrets (secret.example.yaml만 git에 유지)
+**/secret.yaml
+secret.yaml
+*-secret.yaml
+!secret.example.yaml
