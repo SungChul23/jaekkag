@@ -9,12 +9,17 @@ REQUIRED_FIELDS = {
     "event_type",
     "order_id",
     "product_id",
+    "model_name",
+    "color_name",
     "quantity",
     "created_at",
 }
 
+VALID_MODEL_NAMES = {"FOLD", "FLIP", "ULTRA"}
+VALID_COLOR_NAMES = {"BLACK", "WHITE", "LAVENDER", "GRAY"}
+
 ##############################################
-# 잘못된 이벤트 검열(재고처리 단계로 들어가지 않도록)
+# 잘못된 이벤트 검증(재고 처리 단계로 들어가지 않도록)
 ##############################################
 def validate_order_event(event: dict[str, Any]) -> None:
     """주문 이벤트가 팀 공통 규격을 따르는지 검사한다."""
@@ -25,26 +30,44 @@ def validate_order_event(event: dict[str, Any]) -> None:
         missing = ", ".join(sorted(missing_fields))
         raise ValueError(f"필수 필드가 없습니다: {missing}")
 
+    if not isinstance(event["event_id"], str):
+        raise ValueError("event_id는 UUID 문자열이어야 합니다.")
+
     try:
-        UUID(str(event["event_id"]))
+        UUID(event["event_id"])
     except (ValueError, TypeError, AttributeError) as error:
         raise ValueError("event_id는 UUID 문자열이어야 합니다.") from error
 
     if event["event_type"] != "ORDER_CREATED":
         raise ValueError("지원하지 않는 event_type입니다.")
 
-    if not isinstance(event["order_id"], int):
+    if type(event["order_id"]) is not int:
         raise ValueError("order_id는 정수여야 합니다.")
 
-    if not isinstance(event["product_id"], int):
+    if type(event["product_id"]) is not int:
         raise ValueError("product_id는 정수여야 합니다.")
 
-    if not isinstance(event["quantity"], int) or event["quantity"] <= 0:
+    if (
+        not isinstance(event["model_name"], str)
+        or event["model_name"] not in VALID_MODEL_NAMES
+    ):
+        raise ValueError("지원하지 않는 model_name입니다.")
+
+    if (
+        not isinstance(event["color_name"], str)
+        or event["color_name"] not in VALID_COLOR_NAMES
+    ):
+        raise ValueError("지원하지 않는 color_name입니다.")
+
+    if type(event["quantity"]) is not int or event["quantity"] <= 0:
         raise ValueError("quantity는 1 이상의 정수여야 합니다.")
+
+    if not isinstance(event["created_at"], str):
+        raise ValueError("created_at은 ISO 8601 문자열이어야 합니다.")
 
     try:
         datetime.fromisoformat(
-            str(event["created_at"]).replace("Z", "+00:00")
+            event["created_at"].replace("Z", "+00:00")
         )
     except ValueError as error:
         raise ValueError(
@@ -62,6 +85,8 @@ def process_order_event(event: dict[str, Any]) -> str:
     event_id = event["event_id"]
     order_id = event["order_id"]
     product_id = event["product_id"]
+    model_name = event["model_name"]
+    color_name = event["color_name"]
     order_quantity = event["quantity"]
 
     connection = get_db_connection()
@@ -84,43 +109,76 @@ def process_order_event(event: dict[str, Any]) -> str:
                 connection.rollback()
                 return "DUPLICATE"
 
-            # 2. 재고가 충분한 경우에만 차감
+            # 2. 상품 존재 여부와 모델·색상 조합 확인
             cursor.execute(
                 """
-                UPDATE master_inventory
-                SET quantity = quantity - %s,
-                    updated_at = CURRENT_TIMESTAMP
+                SELECT model_name, color_name
+                FROM master_inventory
                 WHERE product_id = %s
-                  AND quantity >= %s
                 """,
-                (
-                    order_quantity,
-                    product_id,
-                    order_quantity,
-                ),
+                (product_id,),
             )
 
-            # UPDATE된 행 개수 확인
-            if cursor.rowcount == 1:
-                result = "SUCCESS"
-            else:
-                result = "OUT_OF_STOCK"
+            inventory = cursor.fetchone()
 
-            # 3. 처리 결과 저장
+            if inventory is None:
+                result = "FAILED"
+                error_message = "존재하지 않는 상품입니다."
+            elif (
+                inventory["model_name"] != model_name
+                or inventory["color_name"] != color_name
+            ):
+                result = "FAILED"
+                error_message = "상품의 모델 또는 색상 정보가 일치하지 않습니다."
+            else:
+                # 3. 재고가 충분한 경우에만 차감
+                cursor.execute(
+                    """
+                    UPDATE master_inventory
+                    SET
+                        stock_quantity = stock_quantity - %s,
+                        updated_at = CURRENT_TIMESTAMP(6)
+                    WHERE product_id = %s
+                      AND stock_quantity >= %s
+                    """,
+                    (
+                        order_quantity,
+                        product_id,
+                        order_quantity,
+                    ),
+                )
+
+                if cursor.rowcount == 1:
+                    result = "SUCCESS"
+                    error_message = None
+                else:
+                    result = "OUT_OF_STOCK"
+                    error_message = "재고가 부족합니다."
+
+            # 4. 처리 결과 저장
             cursor.execute(
                 """
                 INSERT INTO processed_events (
                     event_id,
                     order_id,
-                    result,
-                    processed_at
+                    product_id,
+                    model_name,
+                    color_name,
+                    quantity,
+                    process_status,
+                    error_message
                 )
-                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     event_id,
                     order_id,
+                    product_id,
+                    model_name,
+                    color_name,
+                    order_quantity,
                     result,
+                    error_message,
                 ),
             )
 
