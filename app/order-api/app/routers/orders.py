@@ -13,7 +13,7 @@ from app.metrics import (
     ORDER_REQUESTS_TOTAL,
     ORDER_SUCCESS_TOTAL,
 )
-from app.models import Order, OutboxEvent
+from app.models import Order, OrderStatus, OutboxEvent
 from app.schemas import OrderCreateRequest, OrderCreateResponse
 
 
@@ -33,10 +33,12 @@ def create_order(
     started_at = perf_counter()
 
     try:
+        product_id = order_request.product_id.value
+
         order = Order(
-            product_id=order_request.product_id,
+            product_id=product_id,
             quantity=order_request.quantity,
-            status="RECEIVED",
+            status=OrderStatus.CREATED,
         )
 
         db.add(order)
@@ -49,7 +51,7 @@ def create_order(
             "event_id": event_id,
             "event_type": "ORDER_CREATED",
             "order_id": order.order_id,
-            "product_id": order_request.product_id,
+            "product_id": product_id,
             "quantity": order_request.quantity,
             "created_at": created_at.isoformat().replace("+00:00", "Z"),
         }
@@ -70,12 +72,14 @@ def create_order(
 
         return OrderCreateResponse(
             order_id=order.order_id,
-            status=order.status,
+            status=order.status.value,
         )
 
     except SQLAlchemyError as exc:
         db.rollback()
         ORDER_FAILURE_TOTAL.inc()
+
+        print(f"Database error: {exc}")
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

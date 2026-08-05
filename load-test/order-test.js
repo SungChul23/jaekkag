@@ -4,16 +4,19 @@
 // 50 → 100 VUs
 // 마지막에는 0 VUs로 감소
 
-// 각 가상 사용자는 다음 형식의 주문 요청을 반복 전송
-// {
-//   "product_id": 101~104, 201~204, 301~304 중 하나,
-//   "quantity": 1~3
-// }
+// path 찾을 수 없어서 명령어 실행
+// & "C:\Program Files\k6\k6.exe" version
 
 import http from "k6/http";
 import { check, sleep } from "k6";
 
 export const options = {
+//   // Test 
+//   stages: [
+//   { duration: "10s", target: 10 },
+//   { duration: "10s", target: 0 },
+// ],
+    
   stages: [
     { duration: "30s", target: 10 },
     { duration: "1m", target: 50 },
@@ -32,17 +35,17 @@ export const options = {
 // 201~204: Flip
 // 301~304: Ultra
 const productIds = [
-  101, 102, 103, 104,
-  201, 202, 203, 204,
-  301, 302, 303, 304,
+  "101", "102", "103", "104",
+  "201", "202", "203", "204",
+  "301", "302", "303", "304",
 ];
 
 export default function () {
   const productId =
     productIds[Math.floor(Math.random() * productIds.length)];
 
-  const quantity = Math.floor(Math.random() * 3) + 1;
-
+  // 한정 판매 정책에 따라 주문 수량은 1대로 고정
+  const quantity = 1;
   const payload = JSON.stringify({
     product_id: productId,
     quantity: quantity,
@@ -72,9 +75,9 @@ export default function () {
       }
     },
 
-    "status is RECEIVED": (res) => {
+    "status is CREATED": (res) => {
       try {
-        return res.json("status") === "RECEIVED";
+        return res.json("status") === "CREATED";
       } catch {
         return false;
       }
