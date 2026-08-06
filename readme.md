@@ -7,7 +7,7 @@ Outbox Pattern과 Kinesis를 활용해 **주문 처리**와 **재고 반영**을
 
 ## 📐 아키텍처
 
-![Architecture](./assets/jaekkag_arc.png)
+![Architecture](./assets/jaekkag_arc_v2.png)
 
 ```
 k6(부하테스트) → AWS ALB → K8s Ingress → K8s Service → Order API Pod
