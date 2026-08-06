@@ -4,7 +4,6 @@ from uuid import UUID
 from app.database import get_db_connection
 from app.metrics import (
     inventory_duplicate_events_total,
-    inventory_failed_total,
     inventory_out_of_stock_total,
     inventory_processed_total,
     inventory_processing_duration_seconds,
@@ -16,14 +15,9 @@ REQUIRED_FIELDS = {
     "event_type",
     "order_id",
     "product_id",
-    "model_name",
-    "color_name",
     "quantity",
     "created_at",
 }
-
-VALID_MODEL_NAMES = {"FOLD", "FLIP", "ULTRA"}
-VALID_COLOR_NAMES = {"BLACK", "WHITE", "LAVENDER", "GRAY"}
 
 ##############################################
 # 잘못된 이벤트 검증(재고 처리 단계로 들어가지 않도록)
@@ -53,18 +47,6 @@ def validate_order_event(event: dict[str, Any]) -> None:
 
     if type(event["product_id"]) is not int:
         raise ValueError("product_id는 정수여야 합니다.")
-
-    if (
-        not isinstance(event["model_name"], str)
-        or event["model_name"] not in VALID_MODEL_NAMES
-    ):
-        raise ValueError("지원하지 않는 model_name입니다.")
-
-    if (
-        not isinstance(event["color_name"], str)
-        or event["color_name"] not in VALID_COLOR_NAMES
-    ):
-        raise ValueError("지원하지 않는 color_name입니다.")
 
     if type(event["quantity"]) is not int or event["quantity"] <= 0:
         raise ValueError("quantity는 1 이상의 정수여야 합니다.")
@@ -97,8 +79,6 @@ def _process_order_event(event: dict[str, Any]) -> str:
     event_id = event["event_id"]
     order_id = event["order_id"]
     product_id = event["product_id"]
-    model_name = event["model_name"]
-    color_name = event["color_name"]
     order_quantity = event["quantity"]
 
     connection = get_db_connection()
@@ -122,7 +102,7 @@ def _process_order_event(event: dict[str, Any]) -> str:
                 inventory_duplicate_events_total.inc()
                 return "DUPLICATE"
 
-            # 2. 상품 존재 여부와 모델·색상 조합 확인
+            # 2. product_id를 기준으로 상품 정보 조회
             cursor.execute(
                 """
                 SELECT model_name, color_name
@@ -135,38 +115,36 @@ def _process_order_event(event: dict[str, Any]) -> str:
             inventory = cursor.fetchone()
 
             if inventory is None:
-                result = "FAILED"
-                error_message = "존재하지 않는 상품입니다."
-            elif (
-                inventory["model_name"] != model_name
-                or inventory["color_name"] != color_name
-            ):
-                result = "FAILED"
-                error_message = "상품의 모델 또는 색상 정보가 일치하지 않습니다."
-            else:
-                # 3. 재고가 충분한 경우에만 차감
-                cursor.execute(
-                    """
-                    UPDATE master_inventory
-                    SET
-                        stock_quantity = stock_quantity - %s,
-                        updated_at = CURRENT_TIMESTAMP(6)
-                    WHERE product_id = %s
-                      AND stock_quantity >= %s
-                    """,
-                    (
-                        order_quantity,
-                        product_id,
-                        order_quantity,
-                    ),
+                raise ValueError(
+                    f"존재하지 않는 product_id입니다: {product_id}"
                 )
 
-                if cursor.rowcount == 1:
-                    result = "SUCCESS"
-                    error_message = None
-                else:
-                    result = "OUT_OF_STOCK"
-                    error_message = "재고가 부족합니다."
+            model_name = inventory["model_name"]
+            color_name = inventory["color_name"]
+
+            # 3. 재고가 충분한 경우에만 차감
+            cursor.execute(
+                """
+                UPDATE master_inventory
+                SET
+                    stock_quantity = stock_quantity - %s,
+                    updated_at = CURRENT_TIMESTAMP(6)
+                WHERE product_id = %s
+                  AND stock_quantity >= %s
+                """,
+                (
+                    order_quantity,
+                    product_id,
+                    order_quantity,
+                ),
+            )
+
+            if cursor.rowcount == 1:
+                result = "SUCCESS"
+                error_message = None
+            else:
+                result = "OUT_OF_STOCK"
+                error_message = "재고가 부족합니다."
 
             # 4. 처리 결과 저장
             cursor.execute(
@@ -201,8 +179,6 @@ def _process_order_event(event: dict[str, Any]) -> str:
             inventory_processed_total.inc()
         elif result == "OUT_OF_STOCK":
             inventory_out_of_stock_total.inc()
-        elif result == "FAILED":
-            inventory_failed_total.inc()
 
         return result
 

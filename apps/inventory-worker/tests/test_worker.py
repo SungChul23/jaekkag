@@ -14,8 +14,6 @@ class TestValidateOrderEvent(unittest.TestCase):
             "event_type": "ORDER_CREATED",
             "order_id": 1001,
             "product_id": 101,
-            "model_name": "FOLD",
-            "color_name": "BLACK",
             "quantity": 2,
             "created_at": "2026-08-05T09:00:00Z",
         }
@@ -57,18 +55,6 @@ class TestValidateOrderEvent(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_order_event(self.valid_event)
 
-    def test_invalid_model_name(self) -> None:
-        self.valid_event["model_name"] = "INVALID"
-
-        with self.assertRaises(ValueError):
-            validate_order_event(self.valid_event)
-
-    def test_invalid_color_name(self) -> None:
-        self.valid_event["color_name"] = "INVALID"
-
-        with self.assertRaises(ValueError):
-            validate_order_event(self.valid_event)
-
     def test_invalid_type_is_rejected_before_db_access(self) -> None:
         self.valid_event["quantity"] = True
 
@@ -87,8 +73,6 @@ class TestProcessOrderEvent(unittest.TestCase):
             "event_type": "ORDER_CREATED",
             "order_id": 1001,
             "product_id": 101,
-            "model_name": "FOLD",
-            "color_name": "BLACK",
             "quantity": 2,
             "created_at": "2026-08-05T09:00:00Z",
         }
@@ -101,7 +85,6 @@ class TestProcessOrderEvent(unittest.TestCase):
             for name in (
                 "inventory_processed_total",
                 "inventory_out_of_stock_total",
-                "inventory_failed_total",
                 "inventory_duplicate_events_total",
                 "inventory_processing_duration_seconds",
             )
@@ -120,7 +103,6 @@ class TestProcessOrderEvent(unittest.TestCase):
         counter_names = {
             "SUCCESS": "inventory_processed_total",
             "OUT_OF_STOCK": "inventory_out_of_stock_total",
-            "FAILED": "inventory_failed_total",
             "DUPLICATE": "inventory_duplicate_events_total",
         }
 
@@ -145,6 +127,8 @@ class TestProcessOrderEvent(unittest.TestCase):
             return process_order_event(self.valid_event)
 
     def test_success(self) -> None:
+        self.assertNotIn("model_name", self.valid_event)
+        self.assertNotIn("color_name", self.valid_event)
         self.cursor.fetchone.side_effect = [
             None,
             {"model_name": "FOLD", "color_name": "BLACK"},
@@ -157,6 +141,10 @@ class TestProcessOrderEvent(unittest.TestCase):
         self.connection.commit.assert_called_once_with()
         self.connection.rollback.assert_not_called()
         self.connection.close.assert_called_once_with()
+        self.assertEqual(
+            self.cursor.execute.call_args_list[-1].args[1][3:5],
+            ("FOLD", "BLACK"),
+        )
         self.assert_result_counters("SUCCESS")
         self.assert_duration_measured()
 
@@ -173,6 +161,8 @@ class TestProcessOrderEvent(unittest.TestCase):
         self.assert_duration_measured()
 
     def test_out_of_stock(self) -> None:
+        self.assertNotIn("model_name", self.valid_event)
+        self.assertNotIn("color_name", self.valid_event)
         self.cursor.fetchone.side_effect = [
             None,
             {"model_name": "FOLD", "color_name": "BLACK"},
@@ -186,39 +176,32 @@ class TestProcessOrderEvent(unittest.TestCase):
             self.cursor.execute.call_args_list[-1].args[1][-2:],
             ("OUT_OF_STOCK", "재고가 부족합니다."),
         )
+        self.assertEqual(
+            self.cursor.execute.call_args_list[-1].args[1][3:5],
+            ("FOLD", "BLACK"),
+        )
         self.connection.commit.assert_called_once_with()
         self.assert_result_counters("OUT_OF_STOCK")
         self.assert_duration_measured()
 
-    def test_missing_product_is_recorded_as_failed(self) -> None:
+    def test_missing_product_raises_value_error(self) -> None:
         self.cursor.fetchone.side_effect = [None, None]
 
-        result = self.process_event()
+        with self.assertRaisesRegex(ValueError, "101"):
+            self.process_event()
 
-        self.assertEqual(result, "FAILED")
-        self.assertEqual(
-            self.cursor.execute.call_args_list[-1].args[1][-2:],
-            ("FAILED", "존재하지 않는 상품입니다."),
-        )
-        self.connection.commit.assert_called_once_with()
-        self.assert_result_counters("FAILED")
-        self.assert_duration_measured()
-
-    def test_product_details_mismatch_is_recorded_as_failed(self) -> None:
-        self.cursor.fetchone.side_effect = [
-            None,
-            {"model_name": "FLIP", "color_name": "WHITE"},
+        executed_sql = [
+            call.args[0]
+            for call in self.cursor.execute.call_args_list
         ]
-
-        result = self.process_event()
-
-        self.assertEqual(result, "FAILED")
-        self.assertEqual(
-            self.cursor.execute.call_args_list[-1].args[1][-2:],
-            ("FAILED", "상품의 모델 또는 색상 정보가 일치하지 않습니다."),
+        self.assertFalse(any("UPDATE master_inventory" in sql for sql in executed_sql))
+        self.assertFalse(
+            any("INSERT INTO processed_events" in sql for sql in executed_sql)
         )
-        self.connection.commit.assert_called_once_with()
-        self.assert_result_counters("FAILED")
+        self.connection.rollback.assert_called_once_with()
+        self.connection.commit.assert_not_called()
+        self.connection.close.assert_called_once_with()
+        self.assert_result_counters(None)
         self.assert_duration_measured()
 
     def test_database_error_is_rolled_back_and_raised(self) -> None:
