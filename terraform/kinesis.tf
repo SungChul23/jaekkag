@@ -12,14 +12,18 @@ resource "aws_kinesis_stream" "order_events" {
   # Worker 장애 시에도 처리되지 않은 이벤트를 24시간 보관
   retention_period = 24
 
-  # Shard 수를 직접 관리하지 않고 AWS가 트래픽에 따라 용량을 관리
+  # 샤드 1개로 시작 (초당 쓰기 1MB / 1,000 레코드 처리 가능)
+  # 부하 테스트에서 처리량 초과 시 shard_count를 늘려 재배포
+  shard_count = 1
+
   stream_mode_details {
-    stream_mode = "ON_DEMAND"
+    stream_mode = "PROVISIONED"
   }
 
-  # AWS 관리형 KMS Key로 Stream 데이터를 암호화
-  encryption_type = "KMS"
-  kms_key_id      = "alias/aws/kinesis"
+  # AWS 관리형 KMS Key로 Stream 데이터를 암호화 (추후 진행)
+  # encryption_type = "KMS"
+  # kms_key_id      = "alias/aws/kinesis"
+
 
   tags = {
     Name = "ecommerce-order-events"
