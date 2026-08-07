@@ -72,3 +72,8 @@ spec:
               port: 8001
             initialDelaySeconds: 10
             periodSeconds: 15
+            
+          env:
+            # Publisher 전용 Prometheus 메트릭 포트
+            - name: METRICS_PORT
+              value: "8001"
