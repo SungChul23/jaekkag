@@ -36,7 +36,7 @@ spec:
             - configMapRef:
                 name: ecommerce-config
             - secretRef:
-                name: ecommerce-db-secret
+                name: ecommerce-secret
 
           env:
             - name: POD_NAME

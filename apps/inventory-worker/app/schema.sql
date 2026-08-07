@@ -81,27 +81,3 @@ CREATE TABLE IF NOT EXISTS processed_events (
     INDEX idx_processed_events_status (process_status),
     INDEX idx_processed_events_processed_at (processed_at)
 );
--- ---------------------------------------------------------
--- 3. 상품별 초기 재고 데이터 (초기화 - 테스트용)
--- ---------------------------------------------------------
-INSERT INTO master_inventory (
-    product_id,
-    model_name,
-    color_name,
-    stock_quantity
-)
-VALUES
-    ('101', 'FOLD',  'BLACK',     500),
-    ('102', 'FOLD',  'WHITE',     400),
-    ('103', 'FOLD',  'LAVENDER',  300),
-    ('104', 'FOLD',  'GRAY',      200),
-
-    ('201', 'FLIP',  'BLACK',     800),
-    ('202', 'FLIP',  'WHITE',     700),
-    ('203', 'FLIP',  'LAVENDER',  600),
-    ('204', 'FLIP',  'GRAY',      500),
-
-    ('301', 'ULTRA', 'BLACK',     400),
-    ('302', 'ULTRA', 'WHITE',     350),
-    ('303', 'ULTRA', 'LAVENDER',  250),
-    ('304', 'ULTRA', 'GRAY',      150);
