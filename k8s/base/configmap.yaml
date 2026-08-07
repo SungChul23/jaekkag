@@ -11,6 +11,7 @@ data:
   LOG_LEVEL: "INFO"
   
   # METRICS_PORT: "8000" # 보충
-  DB_HOST: "replace-with-rds-endpoint" # 보충
+# Terraform으로 생성한 RDS MySQL Endpoint
+  DB_HOST: "ecommerce-dev-rds.c43ekyi6yiie.us-east-1.rds.amazonaws.com"
   ##Order API에서 DB 연결을 위해 ecommerce-config에 DB_HOST가 필요합니다. 
   ## 공통 규격에 있는 METRICS_PORT=8000도 같이 추가하면 좋을 것 같습니다.
