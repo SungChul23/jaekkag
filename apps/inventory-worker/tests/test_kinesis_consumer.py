@@ -10,7 +10,7 @@ def test_decode_kinesis_record() -> None:
         "event_id": "770e8400-e29b-41d4-a716-446655440002",
         "event_type": "ORDER_CREATED",
         "order_id": 1003,
-        "product_id": 101,
+        "product_id": "101",
         "quantity": 2,
         "created_at": "2026-08-04T09:30:00",
     }
@@ -43,7 +43,7 @@ def test_process_kinesis_record() -> None:
         "event_id": "880e8400-e29b-41d4-a716-446655440003",
         "event_type": "ORDER_CREATED",
         "order_id": 1004,
-        "product_id": 101,
+        "product_id": "101",
         "quantity": 1,
         "created_at": "2026-08-04T10:30:00",
     }

@@ -45,8 +45,12 @@ def validate_order_event(event: dict[str, Any]) -> None:
     if type(event["order_id"]) is not int:
         raise ValueError("order_id는 정수여야 합니다.")
 
-    if type(event["product_id"]) is not int:
-        raise ValueError("product_id는 정수여야 합니다.")
+    if (
+        not isinstance(event["product_id"], str)
+        or not event["product_id"]
+        or len(event["product_id"]) > 10
+    ):
+        raise ValueError("product_id는 1~10자의 문자열이어야 합니다.")
 
     if type(event["quantity"]) is not int or event["quantity"] <= 0:
         raise ValueError("quantity는 1 이상의 정수여야 합니다.")

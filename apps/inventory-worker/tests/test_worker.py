@@ -13,7 +13,7 @@ class TestValidateOrderEvent(unittest.TestCase):
             "event_id": "550e8400-e29b-41d4-a716-446655440000",
             "event_type": "ORDER_CREATED",
             "order_id": 1001,
-            "product_id": 101,
+            "product_id": "101",
             "quantity": 2,
             "created_at": "2026-08-05T09:00:00Z",
         }
@@ -55,6 +55,22 @@ class TestValidateOrderEvent(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_order_event(self.valid_event)
 
+    def test_invalid_product_id_type(self) -> None:
+        """공통 규격과 달리 product_id가 문자열이 아니면 거절한다."""
+
+        self.valid_event["product_id"] = 101
+
+        with self.assertRaises(ValueError):
+            validate_order_event(self.valid_event)
+
+    def test_product_id_longer_than_ten_characters(self) -> None:
+        """VARCHAR(10) 범위를 넘는 product_id는 거절한다."""
+
+        self.valid_event["product_id"] = "12345678901"
+
+        with self.assertRaises(ValueError):
+            validate_order_event(self.valid_event)
+
     def test_invalid_type_is_rejected_before_db_access(self) -> None:
         self.valid_event["quantity"] = True
 
@@ -72,7 +88,7 @@ class TestProcessOrderEvent(unittest.TestCase):
             "event_id": "550e8400-e29b-41d4-a716-446655440000",
             "event_type": "ORDER_CREATED",
             "order_id": 1001,
-            "product_id": 101,
+            "product_id": "101",
             "quantity": 2,
             "created_at": "2026-08-05T09:00:00Z",
         }

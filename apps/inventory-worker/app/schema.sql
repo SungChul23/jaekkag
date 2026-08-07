@@ -9,7 +9,7 @@
 -- 1. 상품별 현재 재고 테이블
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS master_inventory (
-    product_id       INT          NOT NULL,
+    product_id       VARCHAR(10)  NOT NULL,
     model_name       VARCHAR(30)  NOT NULL,
     color_name       VARCHAR(30)  NOT NULL,
     stock_quantity   INT          NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS master_inventory (
 CREATE TABLE IF NOT EXISTS processed_events (
     event_id         CHAR(36)      NOT NULL,
     order_id         BIGINT        NOT NULL,
-    product_id       INT           NOT NULL,
+    product_id       VARCHAR(10)   NOT NULL,
     model_name       VARCHAR(30)   NOT NULL,
     color_name       VARCHAR(30)   NOT NULL,
     quantity         INT           NOT NULL,
@@ -91,17 +91,17 @@ INSERT INTO master_inventory (
     stock_quantity
 )
 VALUES
-    (101, 'FOLD',  'BLACK',     500),
-    (102, 'FOLD',  'WHITE',     400),
-    (103, 'FOLD',  'LAVENDER',  300),
-    (104, 'FOLD',  'GRAY',      200),
+    ('101', 'FOLD',  'BLACK',     500),
+    ('102', 'FOLD',  'WHITE',     400),
+    ('103', 'FOLD',  'LAVENDER',  300),
+    ('104', 'FOLD',  'GRAY',      200),
 
-    (201, 'FLIP',  'BLACK',     800),
-    (202, 'FLIP',  'WHITE',     700),
-    (203, 'FLIP',  'LAVENDER',  600),
-    (204, 'FLIP',  'GRAY',      500),
+    ('201', 'FLIP',  'BLACK',     800),
+    ('202', 'FLIP',  'WHITE',     700),
+    ('203', 'FLIP',  'LAVENDER',  600),
+    ('204', 'FLIP',  'GRAY',      500),
 
-    (301, 'ULTRA', 'BLACK',     400),
-    (302, 'ULTRA', 'WHITE',     350),
-    (303, 'ULTRA', 'LAVENDER',  250),
-    (304, 'ULTRA', 'GRAY',      150);
+    ('301', 'ULTRA', 'BLACK',     400),
+    ('302', 'ULTRA', 'WHITE',     350),
+    ('303', 'ULTRA', 'LAVENDER',  250),
+    ('304', 'ULTRA', 'GRAY',      150);
