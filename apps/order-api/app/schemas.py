@@ -33,7 +33,7 @@ class OrderCreateRequest(BaseModel):
     quantity: int = Field(
         ...,
         gt=0,
-        le=1,
+        # le=1,
         examples=[1],
         description="주문 수량",
     )

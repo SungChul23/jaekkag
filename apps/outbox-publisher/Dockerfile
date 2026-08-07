@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # app/ 패키지 전체 복사 (main.py도 이 안에 포함됨)
 COPY app/ ./app/
 
+# Prometheus 메트릭 노출 포트
+EXPOSE 8001
+
 # main.py가 app/ 패키지 내부에 있으므로 -m으로 모듈 실행
 # (python app/main.py로 직접 실행하면 내부 상대 import가 깨짐)
 CMD ["python", "-u", "-m", "app.main"]
+

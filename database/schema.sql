@@ -62,3 +62,87 @@ CREATE TABLE IF NOT EXISTS outbox_events (
         created_at
     )
 );
+
+
+-- =====================================================
+-- Master Inventory
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS master_inventory (
+    product_id      INT          PRIMARY KEY,
+    model_name      VARCHAR(30)  NOT NULL,
+    color_name      VARCHAR(30)  NOT NULL,
+    stock_quantity  INT          NOT NULL,
+    updated_at      DATETIME(6)  NOT NULL
+        DEFAULT CURRENT_TIMESTAMP(6)
+        ON UPDATE CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT uq_inventory_model_color
+        UNIQUE (model_name, color_name),
+
+    CONSTRAINT chk_inventory_stock
+        CHECK (stock_quantity >= 0),
+
+    CONSTRAINT chk_inventory_model
+        CHECK (model_name IN ('FOLD', 'FLIP', 'ULTRA')),
+
+    CONSTRAINT chk_inventory_color
+        CHECK (
+            color_name IN (
+                'BLACK',
+                'WHITE',
+                'LAVENDER',
+                'GRAY'
+            )
+        )
+);
+
+
+-- =====================================================
+-- Processed Events
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS processed_events (
+    event_id        CHAR(36)     PRIMARY KEY,
+    order_id        BIGINT       NOT NULL,
+    product_id      INT          NOT NULL,
+    model_name      VARCHAR(30)  NOT NULL,
+    color_name      VARCHAR(30)  NOT NULL,
+    quantity        INT          NOT NULL,
+    process_status  VARCHAR(30)  NOT NULL,
+    error_message   TEXT         NULL,
+    processed_at    DATETIME(6)  NOT NULL
+        DEFAULT CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT chk_processed_quantity
+        CHECK (quantity > 0),
+
+    CONSTRAINT chk_processed_model
+        CHECK (model_name IN ('FOLD', 'FLIP', 'ULTRA')),
+
+    CONSTRAINT chk_processed_color
+        CHECK (
+            color_name IN (
+                'BLACK',
+                'WHITE',
+                'LAVENDER',
+                'GRAY'
+            )
+        ),
+
+    CONSTRAINT chk_processed_status
+        CHECK (
+            process_status IN (
+                'SUCCESS',
+                'OUT_OF_STOCK',
+                'FAILED'
+            )
+        ),
+
+    INDEX idx_processed_order_id (order_id),
+    INDEX idx_processed_product_id (product_id),
+    INDEX idx_processed_status_time (
+        process_status,
+        processed_at
+    )
+);
