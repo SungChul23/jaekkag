@@ -1,18 +1,16 @@
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /app_root
 
-# 로그 버퍼링 방지 - kubectl logs에서 print() 출력이 즉시 보이도록
-ENV PYTHONUNBUFFERED=1
-
-# 의존성 먼저 설치 (레이어 캐싱으로 재빌드 속도 향상)
+# 의존성 레이어를 코드 레이어보다 먼저 분리
+# → requirements.txt가 안 바뀌면 이 pip install 레이어는 캐시 재사용됨
+# → 코드만 수정했을 때 재빌드 속도가 빨라짐
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 애플리케이션 코드 복사
-COPY outbox_publisher.py .
+# app/ 패키지 전체 복사 (main.py도 이 안에 포함됨)
+COPY app/ ./app/
 
-# Prometheus 메트릭 포트 (METRICS_PORT 환경변수와 일치)
-EXPOSE 8001
-
-CMD ["python", "outbox_publisher.py"]
+# main.py가 app/ 패키지 내부에 있으므로 -m으로 모듈 실행
+# (python app/main.py로 직접 실행하면 내부 상대 import가 깨짐)
+CMD ["python", "-u", "-m", "app.main"]
