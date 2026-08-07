@@ -1,0 +1,61 @@
+name: Build and Push Images
+
+# 지금은 Actions 화면에서 직접 실행할 때만 동작한다.
+# ECR 및 EKS 준비가 끝나면 main push 자동 실행을 추가한다.
+on:
+  workflow_dispatch:
+
+# 저장소 코드를 읽는 데 필요한 최소 권한
+permissions:
+  contents: read
+
+env:
+  # 프로젝트 공통 AWS 리전
+  AWS_REGION: us-east-1
+
+jobs:
+  build-and-push:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    # 세 애플리케이션 이미지를 같은 방식으로 각각 빌드한다.
+    strategy:
+      matrix:
+        include:
+          - service: order-api
+            context: apps/order-api
+          - service: outbox-publisher
+            context: apps/outbox-publisher
+          - service: inventory-worker
+            context: apps/inventory-worker
+
+    steps:
+      # GitHub 저장소 코드를 Runner로 내려받는다.
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # GitHub Secrets에 저장된 팀 AWS 키로 인증한다.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 인증된 AWS 계정의 ECR에 Docker가 로그인한다.
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Git commit SHA를 이미지 태그로 사용하여 추적 가능하게 만든다.
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG \
+            ${{ matrix.context }}
+
+          docker push \
+            $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG
