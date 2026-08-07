@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import time
 from typing import Any
 
@@ -13,6 +12,18 @@ from botocore.exceptions import (
     ReadTimeoutError,
 )
 
+from app.config import (
+    AWS_REGION,
+    KINESIS_ITERATOR_TYPE,
+    KINESIS_MAX_RETRY_ATTEMPTS,
+    KINESIS_POLL_INTERVAL_SEC,
+    KINESIS_RECORDS_LIMIT,
+    KINESIS_RETRY_BASE_SEC,
+    KINESIS_RETRY_MAX_SEC,
+    KINESIS_STREAM_NAME,
+    POD_NAME,
+    SHARD_INDEX,
+)
 from app.metrics import (
     inventory_failed_total,
     inventory_kinesis_errors_total,
@@ -61,7 +72,7 @@ def create_kinesis_client() -> Any:
 
     return boto3.client(
         "kinesis",
-        region_name=os.getenv("AWS_REGION", "us-east-1"),
+        region_name=AWS_REGION,
         config=Config(
             retries={
                 "max_attempts": 3,
@@ -115,14 +126,14 @@ def list_shard_ids(client: Any, stream_name: str) -> list[str]:
 def resolve_shard_index() -> int:
     """명시적 설정 또는 StatefulSet Pod 이름에서 shard index를 구한다."""
 
-    configured_index = os.getenv("SHARD_INDEX")
+    configured_index = SHARD_INDEX
     if configured_index is not None:
         try:
             shard_index = int(configured_index)
         except ValueError as error:
             raise RuntimeError("SHARD_INDEX는 0 이상의 정수여야 합니다.") from error
     else:
-        pod_name = os.getenv("POD_NAME")
+        pod_name = POD_NAME
         if not pod_name:
             raise RuntimeError("POD_NAME 또는 SHARD_INDEX 환경변수가 필요합니다.")
 
@@ -211,13 +222,13 @@ def poll_once(
 def consume_forever(client: Any | None = None) -> None:
     """StatefulSet Pod에 고정 할당된 shard 하나를 계속 소비한다."""
 
-    stream_name = os.getenv("KINESIS_STREAM_NAME", "ecommerce-order-events")
-    iterator_type = os.getenv("KINESIS_ITERATOR_TYPE", "TRIM_HORIZON")
-    records_limit = int(os.getenv("KINESIS_RECORDS_LIMIT", "1000"))
-    poll_interval = float(os.getenv("KINESIS_POLL_INTERVAL_SEC", "0.2"))
-    max_retry_attempts = int(os.getenv("KINESIS_MAX_RETRY_ATTEMPTS", "5"))
-    retry_base_delay = float(os.getenv("KINESIS_RETRY_BASE_SEC", "1"))
-    retry_max_delay = float(os.getenv("KINESIS_RETRY_MAX_SEC", "10"))
+    stream_name = KINESIS_STREAM_NAME
+    iterator_type = KINESIS_ITERATOR_TYPE
+    records_limit = KINESIS_RECORDS_LIMIT
+    poll_interval = KINESIS_POLL_INTERVAL_SEC
+    max_retry_attempts = KINESIS_MAX_RETRY_ATTEMPTS
+    retry_base_delay = KINESIS_RETRY_BASE_SEC
+    retry_max_delay = KINESIS_RETRY_MAX_SEC
 
     if iterator_type not in {"TRIM_HORIZON", "LATEST"}:
         raise ValueError(

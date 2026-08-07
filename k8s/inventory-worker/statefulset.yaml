@@ -24,7 +24,7 @@ spec:
 
       containers:
         - name: inventory-worker
-          image: INVENTORY_WORKER_ECR_IMAGE_URI:latest
+          image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/inventory-worker:latest
           imagePullPolicy: Always
 
           ports:
@@ -51,12 +51,6 @@ spec:
               value: "1000"
             - name: KINESIS_POLL_INTERVAL_SEC
               value: "0.2"
-            - name: KINESIS_MAX_RETRY_ATTEMPTS
-              value: "5"
-            - name: KINESIS_RETRY_BASE_SEC
-              value: "1"
-            - name: KINESIS_RETRY_MAX_SEC
-              value: "10"
 
           resources:
             requests:

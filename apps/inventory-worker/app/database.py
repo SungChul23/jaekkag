@@ -1,22 +1,11 @@
-import os
-from pathlib import Path
-
 import pymysql
-from dotenv import load_dotenv
 from pymysql.connections import Connection
 
-
-# database.py의 상위 폴더인 inventory-worker/.env를 명시적으로 읽는다.
-BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = BASE_DIR / ".env"
-
-load_dotenv(dotenv_path=ENV_PATH)
+from app.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 
-def get_required_env(name: str) -> str:
-    """필수 환경변수를 읽고, 없으면 오류를 발생시킨다."""
-
-    value = os.getenv(name)
+def get_required_config(name: str, value: str) -> str:
+    """필수 설정값을 확인하고, 없으면 오류를 발생시킨다."""
 
     if value is None or value.strip() == "":
         raise RuntimeError(f"필수 환경변수가 없습니다: {name}")
@@ -28,11 +17,11 @@ def get_db_connection() -> Connection:
     """환경변수에 설정된 RDS MySQL에 연결한다."""
 
     return pymysql.connect(
-        host=get_required_env("DB_HOST"),
-        port=int(get_required_env("DB_PORT")),
-        user=get_required_env("DB_USER"),
-        password=get_required_env("DB_PASSWORD"),
-        database=get_required_env("DB_NAME"),
+        host=get_required_config("DB_HOST", DB_HOST),
+        port=DB_PORT,
+        user=get_required_config("DB_USER", DB_USER),
+        password=get_required_config("DB_PASSWORD", DB_PASSWORD),
+        database=get_required_config("DB_NAME", DB_NAME),
         charset="utf8mb4",
         cursorclass=pymysql.cursors.DictCursor,
         autocommit=False,
