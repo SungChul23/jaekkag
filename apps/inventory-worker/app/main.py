@@ -1,4 +1,3 @@
-# Kinesis 연결 전 대기 상태, 주문처리 X 상태
 import logging
 import os
 import time
@@ -6,6 +5,7 @@ import time
 from prometheus_client import start_http_server
 
 from app.database import get_db_connection
+from app.kinesis_consumer import consume_forever
 
 
 logging.basicConfig(
@@ -57,10 +57,7 @@ def main() -> None:
     logger.info("Prometheus metrics server started on port %s", metrics_port)
 
     wait_for_database()
-
-    while True:
-        logger.info("Kinesis 연결 전 대기 상태")
-        time.sleep(30)
+    consume_forever()
 
 
 if __name__ == "__main__":

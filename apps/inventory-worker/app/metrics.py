@@ -21,13 +21,11 @@ inventory_failed_total = Counter(
     "Number of inventory events committed with a FAILED result",
 )
 
-# Worker가 Kinesis 레코드를 몇 건 처리했는지 누적해서 세는 Counter
 inventory_kinesis_records_total = Counter(
     "inventory_kinesis_records_total",
     "Number of Kinesis records delivered to the inventory processor",
 )
 
-# Kinesis 처리 지연을 보는 메트릭
 inventory_kinesis_iterator_age_milliseconds = Gauge(
     "inventory_kinesis_iterator_age_milliseconds",
     "Kinesis consumer delay behind the latest record for each shard",

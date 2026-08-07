@@ -2,11 +2,15 @@
 import json
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
 from app.kinesis_consumer import (
-    create_shard_iterators,
+    create_shard_iterator,
     decode_kinesis_record,
     list_shard_ids,
-    poll_shards_once,
+    poll_once,
+    resolve_shard_index,
+    select_assigned_shard,
 )
 
 
@@ -16,7 +20,7 @@ def test_decode_kinesis_record() -> None:
         "event_id": "770e8400-e29b-41d4-a716-446655440002",
         "event_type": "ORDER_CREATED",
         "order_id": 1003,
-        "product_id": "101",
+        "product_id": 101,
         "quantity": 2,
         "created_at": "2026-08-04T09:30:00",
     }
@@ -48,7 +52,7 @@ def test_process_kinesis_record() -> None:
         "event_id": "880e8400-e29b-41d4-a716-446655440003",
         "event_type": "ORDER_CREATED",
         "order_id": 1004,
-        "product_id": "101",
+        "product_id": 101,
         "quantity": 1,
         "created_at": "2026-08-04T10:30:00",
     }
@@ -70,11 +74,11 @@ def test_process_kinesis_record() -> None:
     mock_process_order_event.assert_called_once_with(original_event)
 
 
-def test_list_shard_ids_reads_all_pages() -> None:
+def test_list_shard_ids_reads_all_pages_and_sorts() -> None:
     client = MagicMock()
     client.list_shards.side_effect = [
         {
-            "Shards": [{"ShardId": "shard-000"}, {"ShardId": "shard-001"}],
+            "Shards": [{"ShardId": "shard-001"}, {"ShardId": "shard-000"}],
             "NextToken": "next-page",
         },
         {"Shards": [{"ShardId": "shard-002"}]},
@@ -89,56 +93,94 @@ def test_list_shard_ids_reads_all_pages() -> None:
     ]
 
 
-def test_list_shard_ids_rejects_empty_stream() -> None:
+@pytest.mark.parametrize(
+    ("pod_name", "expected_index"),
+    [
+        ("inventory-worker-0", 0),
+        ("inventory-worker-1", 1),
+        ("inventory-worker-2", 2),
+    ],
+)
+def test_resolve_shard_index_from_statefulset_pod(
+    pod_name: str,
+    expected_index: int,
+) -> None:
+    with patch.dict(
+        "app.kinesis_consumer.os.environ",
+        {"POD_NAME": pod_name},
+        clear=True,
+    ):
+        assert resolve_shard_index() == expected_index
+
+
+def test_explicit_shard_index_overrides_pod_name() -> None:
+    with patch.dict(
+        "app.kinesis_consumer.os.environ",
+        {"POD_NAME": "inventory-worker-2", "SHARD_INDEX": "1"},
+        clear=True,
+    ):
+        assert resolve_shard_index() == 1
+
+
+@pytest.mark.parametrize("pod_name", ["inventory-worker", "worker-random-name"])
+def test_resolve_shard_index_rejects_invalid_pod_name(pod_name: str) -> None:
+    with patch.dict(
+        "app.kinesis_consumer.os.environ",
+        {"POD_NAME": pod_name},
+        clear=True,
+    ):
+        with pytest.raises(RuntimeError, match="shard index"):
+            resolve_shard_index()
+
+
+def test_resolve_shard_index_requires_environment() -> None:
+    with patch.dict("app.kinesis_consumer.os.environ", {}, clear=True):
+        with pytest.raises(RuntimeError, match="POD_NAME 또는 SHARD_INDEX"):
+            resolve_shard_index()
+
+
+def test_each_pod_selects_one_distinct_shard() -> None:
+    shard_ids = ["shard-000", "shard-001", "shard-002"]
+
+    assert select_assigned_shard(shard_ids, 0) == "shard-000"
+    assert select_assigned_shard(shard_ids, 1) == "shard-001"
+    assert select_assigned_shard(shard_ids, 2) == "shard-002"
+
+
+def test_select_assigned_shard_rejects_excess_pod_index() -> None:
+    with pytest.raises(RuntimeError, match="shard_count=3"):
+        select_assigned_shard(
+            ["shard-000", "shard-001", "shard-002"],
+            3,
+        )
+
+
+def test_create_shard_iterator() -> None:
     client = MagicMock()
-    client.list_shards.return_value = {"Shards": []}
+    client.get_shard_iterator.return_value = {"ShardIterator": "iterator-0"}
 
-    try:
-        list_shard_ids(client, "empty-stream")
-    except RuntimeError as error:
-        assert "empty-stream" in str(error)
-    else:
-        raise AssertionError("RuntimeError가 발생해야 합니다.")
-
-
-def test_create_shard_iterators_for_every_shard() -> None:
-    client = MagicMock()
-    client.get_shard_iterator.side_effect = [
-        {"ShardIterator": "iterator-0"},
-        {"ShardIterator": "iterator-1"},
-        {"ShardIterator": "iterator-2"},
-    ]
-
-    result = create_shard_iterators(
+    result = create_shard_iterator(
         client,
         "ecommerce-order-events",
-        ["shard-000", "shard-001", "shard-002"],
+        "shard-000",
         "TRIM_HORIZON",
     )
 
-    assert result == {
-        "shard-000": "iterator-0",
-        "shard-001": "iterator-1",
-        "shard-002": "iterator-2",
-    }
-    assert client.get_shard_iterator.call_count == 3
+    assert result == "iterator-0"
+    client.get_shard_iterator.assert_called_once_with(
+        StreamName="ecommerce-order-events",
+        ShardId="shard-000",
+        ShardIteratorType="TRIM_HORIZON",
+    )
 
 
-def test_poll_shards_once_processes_records_and_updates_iterators() -> None:
+def test_poll_once_processes_records_and_returns_next_iterator() -> None:
     client = MagicMock()
-    client.get_records.side_effect = [
-        {
-            "Records": [{"Data": b"first"}],
-            "NextShardIterator": "next-0",
-            "MillisBehindLatest": 120,
-        },
-        {
-            "Records": [{"Data": b"second"}, {"Data": b"third"}],
-            "NextShardIterator": "next-1",
-            "MillisBehindLatest": 0,
-        },
-    ]
-    iterators = {"shard-000": "iterator-0", "shard-001": "iterator-1"}
+    client.get_records.return_value = {
+        "Records": [{"Data": b"first"}, {"Data": b"second"}],
+        "NextShardIterator": "next-iterator",
+        "MillisBehindLatest": 120,
+    }
 
     with (
         patch("app.kinesis_consumer.process_kinesis_record") as mock_process,
@@ -147,31 +189,16 @@ def test_poll_shards_once_processes_records_and_updates_iterators() -> None:
             "app.kinesis_consumer.inventory_kinesis_iterator_age_milliseconds"
         ) as age_metric,
     ):
-        processed = poll_shards_once(client, iterators, records_limit=1000)
+        next_iterator, processed_count = poll_once(
+            client,
+            "shard-000",
+            "iterator-0",
+            1000,
+        )
 
-    assert processed == 3
-    assert iterators == {"shard-000": "next-0", "shard-001": "next-1"}
-    assert mock_process.call_count == 3
-    assert records_metric.inc.call_count == 3
-    assert age_metric.labels.call_args_list == [
-        call(shard_id="shard-000"),
-        call(shard_id="shard-001"),
-    ]
-
-
-def test_poll_shards_once_removes_closed_shard() -> None:
-    client = MagicMock()
-    client.get_records.return_value = {
-        "Records": [],
-        "NextShardIterator": None,
-        "MillisBehindLatest": 0,
-    }
-    iterators = {"shard-000": "iterator-0"}
-
-    with patch(
-        "app.kinesis_consumer.inventory_kinesis_iterator_age_milliseconds"
-    ):
-        processed = poll_shards_once(client, iterators, records_limit=1000)
-
-    assert processed == 0
-    assert iterators == {}
+    assert next_iterator == "next-iterator"
+    assert processed_count == 2
+    assert mock_process.call_count == 2
+    assert records_metric.inc.call_count == 2
+    age_metric.labels.assert_called_once_with(shard_id="shard-000")
+    age_metric.labels.return_value.set.assert_called_once_with(120)

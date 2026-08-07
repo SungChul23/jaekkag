@@ -6,22 +6,22 @@ from app.main import main
 
 class TestMain(unittest.TestCase):
 
-    def run_main_until_loop(self) -> None:
+    def run_main(self) -> None:
         with (
             patch("app.main.wait_for_database") as mock_wait_for_database,
-            patch("app.main.time.sleep", side_effect=RuntimeError("stop loop")),
+            patch("app.main.consume_forever") as mock_consume_forever,
         ):
-            with self.assertRaisesRegex(RuntimeError, "stop loop"):
-                main()
+            main()
 
         mock_wait_for_database.assert_called_once_with()
+        mock_consume_forever.assert_called_once_with()
 
     def test_metrics_server_starts_once_on_default_port(self) -> None:
         with (
             patch.dict("app.main.os.environ", {}, clear=True),
             patch("app.main.start_http_server") as mock_start_http_server,
         ):
-            self.run_main_until_loop()
+            self.run_main()
 
         mock_start_http_server.assert_called_once_with(8002)
 
@@ -30,7 +30,7 @@ class TestMain(unittest.TestCase):
             patch.dict("app.main.os.environ", {"METRICS_PORT": "9102"}, clear=True),
             patch("app.main.start_http_server") as mock_start_http_server,
         ):
-            self.run_main_until_loop()
+            self.run_main()
 
         mock_start_http_server.assert_called_once_with(9102)
 
