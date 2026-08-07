@@ -115,7 +115,7 @@ data "aws_iam_policy_document" "worker_kinesis" {
       "kinesis:DescribeStream",
       "kinesis:DescribeStreamSummary",
       "kinesis:ListShards",
-      "kinesis:SubscribeToShard"
+      # "kinesis:SubscribeToShard" ->  팬-아웃 권한 삭제
     ]
 
     # 프로젝트의 주문 이벤트 Stream에만 접근 허용
