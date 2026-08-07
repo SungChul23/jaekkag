@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from time import perf_counter
 from uuid import uuid4
 
@@ -13,7 +12,12 @@ from app.metrics import (
     ORDER_REQUESTS_TOTAL,
     ORDER_SUCCESS_TOTAL,
 )
-from app.models import Order, OrderStatus, OutboxEvent
+from app.models import (
+    Order,
+    OrderStatus,
+    OutboxEvent,
+    PublishStatus,
+)
 from app.schemas import OrderCreateRequest, OrderCreateResponse
 
 
@@ -35,6 +39,7 @@ def create_order(
     try:
         product_id = order_request.product_id.value
 
+        # 1. 주문 생성
         order = Order(
             product_id=product_id,
             quantity=order_request.quantity,
@@ -42,29 +47,24 @@ def create_order(
         )
 
         db.add(order)
+
+        # order_id를 먼저 생성하기 위해 flush
+        # 아직 commit은 하지 않음
         db.flush()
 
-        created_at = datetime.now(timezone.utc)
-        event_id = str(uuid4())
-
-        event_payload = {
-            "event_id": event_id,
-            "event_type": "ORDER_CREATED",
-            "order_id": order.order_id,
-            "product_id": product_id,
-            "quantity": order_request.quantity,
-            "created_at": created_at.isoformat().replace("+00:00", "Z"),
-        }
-
+        # 2. Outbox Event 생성
         outbox_event = OutboxEvent(
-            event_id=event_id,
-            aggregate_id=order.order_id,
+            event_id=str(uuid4()),
             event_type="ORDER_CREATED",
-            payload=event_payload,
-            status="PENDING",
+            order_id=order.order_id,
+            product_id=product_id,
+            quantity=order_request.quantity,
+            publish_status=PublishStatus.PENDING,
         )
 
         db.add(outbox_event)
+
+        # 3. Order + Outbox Event를 하나의 Transaction으로 저장
         db.commit()
         db.refresh(order)
 

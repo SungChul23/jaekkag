@@ -19,23 +19,46 @@ CREATE TABLE IF NOT EXISTS orders (
 
     updated_at DATETIME NOT NULL
         DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_product_id (product_id),
+    INDEX idx_created_at (created_at)
 );
+
 
 -- =====================================================
 -- Outbox Events
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS outbox_events (
-    event_id CHAR(36) PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
-    aggregate_id BIGINT NOT NULL,
+    event_id VARCHAR(36) NOT NULL UNIQUE,
 
     event_type VARCHAR(50) NOT NULL,
 
-    payload JSON NOT NULL,
+    order_id BIGINT NOT NULL,
 
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    product_id VARCHAR(10) NOT NULL,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    quantity INT NOT NULL,
+
+    publish_status ENUM(
+        'PENDING',
+        'PUBLISHED',
+        'FAILED'
+    ) NOT NULL DEFAULT 'PENDING',
+
+    retry_count INT NOT NULL DEFAULT 0,
+
+    last_error TEXT NULL,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    published_at DATETIME NULL,
+
+    INDEX idx_status_created (
+        publish_status,
+        created_at
+    )
 );

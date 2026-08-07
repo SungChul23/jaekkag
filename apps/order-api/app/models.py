@@ -5,14 +5,19 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Index,
     Integer,
-    JSON,
     String,
+    Text,
 )
 from sqlalchemy.sql import func
 
 from app.database import Base
 
+
+# =====================================================
+# Order
+# =====================================================
 
 class OrderStatus(str, enum.Enum):
     CREATED = "CREATED"
@@ -42,7 +47,7 @@ class Order(Base):
     order_status = Column(
         Enum(
             OrderStatus,
-            name="order_status",
+            name="order_status_enum",
         ),
         nullable=False,
         default=OrderStatus.CREATED,
@@ -59,22 +64,38 @@ class Order(Base):
         DateTime,
         nullable=False,
         server_default=func.now(),
-        server_onupdate=func.now(),
         onupdate=func.now(),
     )
+
+    __table_args__ = (
+        Index("idx_product_id", "product_id"),
+        Index("idx_created_at", "created_at"),
+    )
+
+
+# =====================================================
+# Outbox Event
+# =====================================================
+
+class PublishStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    PUBLISHED = "PUBLISHED"
+    FAILED = "FAILED"
 
 
 class OutboxEvent(Base):
     __tablename__ = "outbox_events"
 
-    event_id = Column(
-        String(36),
+    id = Column(
+        BigInteger,
         primary_key=True,
+        autoincrement=True,
     )
 
-    aggregate_id = Column(
-        BigInteger,
+    event_id = Column(
+        String(36),
         nullable=False,
+        unique=True,
     )
 
     event_type = Column(
@@ -82,20 +103,58 @@ class OutboxEvent(Base):
         nullable=False,
     )
 
-    payload = Column(
-        JSON,
+    order_id = Column(
+        BigInteger,
         nullable=False,
     )
 
-    status = Column(
-        String(20),
+    product_id = Column(
+        String(10),
         nullable=False,
-        default="PENDING",
-        server_default="PENDING",
+    )
+
+    quantity = Column(
+        Integer,
+        nullable=False,
+    )
+
+    publish_status = Column(
+        Enum(
+            PublishStatus,
+            name="publish_status_enum",
+        ),
+        nullable=False,
+        default=PublishStatus.PENDING,
+        server_default=PublishStatus.PENDING.value,
+    )
+
+    retry_count = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    last_error = Column(
+        Text,
+        nullable=True,
     )
 
     created_at = Column(
         DateTime,
         nullable=False,
         server_default=func.now(),
+    )
+
+    published_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_status_created",
+            "publish_status",
+            "created_at",
+        ),
     )
