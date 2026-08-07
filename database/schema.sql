@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS master_inventory (
 CREATE TABLE IF NOT EXISTS processed_events (
     event_id        CHAR(36)     PRIMARY KEY,
     order_id        BIGINT       NOT NULL,
-    product_id      INT          NOT NULL,
+    product_id      VARCHAR(10)  NOT NULL,
     model_name      VARCHAR(30)  NOT NULL,
     color_name      VARCHAR(30)  NOT NULL,
     quantity        INT          NOT NULL,
