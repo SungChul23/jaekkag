@@ -44,12 +44,12 @@ spec:
             - containerPort: 8001  # Prometheus 메트릭 노출 포트 (METRICS_PORT)
 
           # ecommerce-config(ConfigMap): DB_HOST, KINESIS_STREAM_NAME 등 일반 설정
-          # ecommerce-secret(Secret): DB_USER, DB_PASSWORD 등 민감정보
+          # ecommerce-db-secret(Secret): DB_USER, DB_PASSWORD 등 민감정보
           envFrom:
             - configMapRef:
                 name: ecommerce-config
             - secretRef:
-                name: ecommerce-secret
+                name: ecommerce-db-secret
 
           resources:
             requests:

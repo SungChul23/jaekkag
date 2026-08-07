@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS master_inventory (
-    product_id      INT          PRIMARY KEY,
+    product_id      VARCHAR(10)  PRIMARY KEY,
     model_name      VARCHAR(30)  NOT NULL,
     color_name      VARCHAR(30)  NOT NULL,
     stock_quantity  INT          NOT NULL,
