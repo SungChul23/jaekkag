@@ -13,7 +13,7 @@ spec:
     kind: Deployment
     name: order-api
 
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 4
 
   metrics:
