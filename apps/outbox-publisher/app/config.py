@@ -11,5 +11,5 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "8001"))
 POLL_INTERVAL_SEC = float(os.environ.get("POLL_INTERVAL_SEC", "1"))
-BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "50"))
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "500"))
 MAX_RETRY_COUNT = int(os.environ.get("MAX_RETRY_COUNT", "5"))
