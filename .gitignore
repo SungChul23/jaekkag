@@ -8,9 +8,14 @@ crash.log
 # Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
 .venv/
 venv/
+
+# Environment variables
 .env
+.env.*
+!.env.example
 
 # IDE / OS
 .vscode/
