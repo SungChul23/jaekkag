@@ -51,6 +51,12 @@ spec:
               value: "1000"
             - name: KINESIS_POLL_INTERVAL_SEC
               value: "0.2"
+            - name: KINESIS_MAX_RETRY_ATTEMPTS
+              value: "5"
+            - name: KINESIS_RETRY_BASE_SEC
+              value: "1"
+            - name: KINESIS_RETRY_MAX_SEC
+              value: "10"
 
           resources:
             requests:

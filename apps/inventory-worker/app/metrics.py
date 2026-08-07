@@ -18,12 +18,24 @@ inventory_duplicate_events_total = Counter(
 
 inventory_failed_total = Counter(
     "inventory_failed_total",
-    "Number of inventory events committed with a FAILED result",
+    "Number of inventory events that failed before processing completed",
 )
 
 inventory_kinesis_records_total = Counter(
     "inventory_kinesis_records_total",
     "Number of Kinesis records delivered to the inventory processor",
+)
+
+inventory_kinesis_errors_total = Counter(
+    "inventory_kinesis_errors_total",
+    "Number of Kinesis consumer errors by error type",
+    ["error_type"],
+)
+
+inventory_kinesis_retries_total = Counter(
+    "inventory_kinesis_retries_total",
+    "Number of Kinesis consumer retry attempts by error type",
+    ["error_type"],
 )
 
 inventory_kinesis_iterator_age_milliseconds = Gauge(
