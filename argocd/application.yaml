@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/SungChul23/jaekkag.git
+    targetRevision: main
+    path: k8s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+
+  # HPA가 변경한 Order API Pod 개수를
+  # Argo CD가 Deployment YAML 값으로 되돌리지 않도록 제외
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: order-api
+      namespace: ecommerce
+      jsonPointers:
+        - /spec/replicas
