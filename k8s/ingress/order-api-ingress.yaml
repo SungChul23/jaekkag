@@ -4,17 +4,27 @@ metadata:
   name: ecommerce-ingress
   namespace: ecommerce
   annotations:
+    # 인터넷에서 접근 가능한 Public ALB 생성
     alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # ALB가 Node가 아닌 Order API Pod IP로 직접 전달
     alb.ingress.kubernetes.io/target-type: ip
+
+    # HTTP 80 포트 사용
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+
+    # ALB Target Group 상태 확인 경로
     alb.ingress.kubernetes.io/healthcheck-path: /health
     alb.ingress.kubernetes.io/success-codes: "200"
+
 spec:
+  # AWS Load Balancer Controller가 처리할 Ingress
   ingressClassName: alb
 
   rules:
     - http:
         paths:
+          # 주문 API
           - path: /orders
             pathType: Prefix
             backend:
@@ -23,6 +33,7 @@ spec:
                 port:
                   number: 80
 
+          # 상태 확인 API
           - path: /health
             pathType: Exact
             backend:
@@ -30,14 +41,3 @@ spec:
                 name: order-api-service
                 port:
                   number: 80
-
-          - path: /metrics
-            pathType: Prefix
-            backend:
-              service:
-                name: order-api-service
-                port:
-                  number: 80
-
-# 这个文件依赖 4 号安装 AWS Load Balancer Controller。
-# ingressClassName: alb 必须和全组的 ALB 规范一致。

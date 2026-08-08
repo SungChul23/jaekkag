@@ -34,7 +34,7 @@ spec:
 
           # TODO(배포 전 필수 교체): 실제 ECR 이미지 주소 + Git SHA 태그
           # 예: 123456789012.dkr.ecr.us-east-1.amazonaws.com/outbox-publisher:a1b2c3d
-          image: "827913617635.dkr.ecr.us-east-1.amazonaws.com/outbox-publisher:5273181"
+          image: "827913617635.dkr.ecr.us-east-1.amazonaws.com/outbox-publisher:rsa-fix"
 
           # ECR가 IMMUTABLE 태그 정책이라 항상 새 태그로 푸시되는데,
           # 혹시 모를 노드 이미지 캐싱 문제를 막기 위해 매번 최신 이미지를 pull
