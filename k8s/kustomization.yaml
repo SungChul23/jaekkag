@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # 공통 설정
+  - base/namespace.yaml
+  - base/configmap.yaml
+  - base/serviceaccounts.yaml
+
+  # Order API
+  - order-api/deployment.yaml
+  - order-api/service.yaml
+
+  # Outbox Publisher
+  - publisher/deployment.yaml
+  - publisher/service.yaml
+
+  # Inventory Worker
+  - inventory-worker/service.yaml
+  - inventory-worker/statefulset.yaml
+
+  # 외부 연결 및 자동 확장
+  - ingress/order-api-ingress.yaml
+  - hpa/order-api-hpa.yaml
