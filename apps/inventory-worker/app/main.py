@@ -1,15 +1,15 @@
 import logging
-import os
 import time
 
 from prometheus_client import start_http_server
 
+from app.config import LOG_LEVEL, METRICS_PORT
 from app.database import get_db_connection
 from app.kinesis_consumer import consume_forever
 
 
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
+    level=LOG_LEVEL,
     format="%(asctime)s %(levelname)s %(name)s - %(message)s",
 )
 
@@ -52,9 +52,8 @@ def wait_for_database() -> None:
 def main() -> None:
     logger.info("Inventory Worker 시작")
 
-    metrics_port = int(os.getenv("METRICS_PORT", "8002"))
-    start_http_server(metrics_port)
-    logger.info("Prometheus metrics server started on port %s", metrics_port)
+    start_http_server(METRICS_PORT)
+    logger.info("Prometheus metrics server started on port %s", METRICS_PORT)
 
     wait_for_database()
     consume_forever()

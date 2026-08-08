@@ -1,19 +1,58 @@
 import json
 import logging
-import os
 import time
 from typing import Any
 
 import boto3
+from botocore.config import Config
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
+from app.config import (
+    AWS_REGION,
+    KINESIS_ITERATOR_TYPE,
+    KINESIS_MAX_RETRY_ATTEMPTS,
+    KINESIS_POLL_INTERVAL_SEC,
+    KINESIS_RECORDS_LIMIT,
+    KINESIS_RETRY_BASE_SEC,
+    KINESIS_RETRY_MAX_SEC,
+    KINESIS_STREAM_NAME,
+    POD_NAME,
+    SHARD_INDEX,
+)
 from app.metrics import (
+    inventory_failed_total,
+    inventory_kinesis_errors_total,
     inventory_kinesis_iterator_age_milliseconds,
     inventory_kinesis_records_total,
+    inventory_kinesis_retries_total,
 )
 from app.worker import process_order_event
 
 
 logger = logging.getLogger("inventory-worker.kinesis")
+
+RETRYABLE_KINESIS_ERROR_CODES = {
+    "InternalFailure",
+    "LimitExceededException",
+    "ProvisionedThroughputExceededException",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "ServiceUnavailableException",
+    "Throttling",
+    "ThrottlingException",
+}
+
+RETRYABLE_CONNECTION_ERRORS = (
+    ConnectionClosedError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 
 
 def decode_kinesis_record(record: dict[str, Any]) -> dict[str, Any]:
@@ -33,8 +72,33 @@ def create_kinesis_client() -> Any:
 
     return boto3.client(
         "kinesis",
-        region_name=os.getenv("AWS_REGION", "us-east-1"),
+        region_name=AWS_REGION,
+        config=Config(
+            retries={
+                "max_attempts": 3,
+                "mode": "standard",
+            }
+        ),
     )
+
+
+def get_kinesis_error_type(error: Exception) -> str:
+    """메트릭과 재시도 판단에 사용할 안정적인 오류 이름을 반환한다."""
+
+    if isinstance(error, ClientError):
+        return str(error.response.get("Error", {}).get("Code", "ClientError"))
+
+    return type(error).__name__
+
+
+def calculate_retry_delay(
+    attempt: int,
+    base_delay: float,
+    max_delay: float,
+) -> float:
+    """재시도 횟수에 따라 지수 백오프 시간을 계산한다."""
+
+    return min(max_delay, base_delay * (2 ** (attempt - 1)))
 
 
 def list_shard_ids(client: Any, stream_name: str) -> list[str]:
@@ -62,14 +126,14 @@ def list_shard_ids(client: Any, stream_name: str) -> list[str]:
 def resolve_shard_index() -> int:
     """명시적 설정 또는 StatefulSet Pod 이름에서 shard index를 구한다."""
 
-    configured_index = os.getenv("SHARD_INDEX")
+    configured_index = SHARD_INDEX
     if configured_index is not None:
         try:
             shard_index = int(configured_index)
         except ValueError as error:
             raise RuntimeError("SHARD_INDEX는 0 이상의 정수여야 합니다.") from error
     else:
-        pod_name = os.getenv("POD_NAME")
+        pod_name = POD_NAME
         if not pod_name:
             raise RuntimeError("POD_NAME 또는 SHARD_INDEX 환경변수가 필요합니다.")
 
@@ -138,7 +202,17 @@ def poll_once(
 
     processed_count = 0
     for record in response.get("Records", []):
-        process_kinesis_record(record)
+        try:
+            process_kinesis_record(record)
+        except Exception:
+            inventory_failed_total.inc()
+            logger.exception(
+                "Kinesis 이벤트 처리 실패: shard=%s sequence_number=%s",
+                shard_id,
+                record.get("SequenceNumber", "unknown"),
+            )
+            raise
+
         inventory_kinesis_records_total.inc()
         processed_count += 1
 
@@ -148,10 +222,13 @@ def poll_once(
 def consume_forever(client: Any | None = None) -> None:
     """StatefulSet Pod에 고정 할당된 shard 하나를 계속 소비한다."""
 
-    stream_name = os.getenv("KINESIS_STREAM_NAME", "ecommerce-order-events")
-    iterator_type = os.getenv("KINESIS_ITERATOR_TYPE", "TRIM_HORIZON")
-    records_limit = int(os.getenv("KINESIS_RECORDS_LIMIT", "1000"))
-    poll_interval = float(os.getenv("KINESIS_POLL_INTERVAL_SEC", "0.2"))
+    stream_name = KINESIS_STREAM_NAME
+    iterator_type = KINESIS_ITERATOR_TYPE
+    records_limit = KINESIS_RECORDS_LIMIT
+    poll_interval = KINESIS_POLL_INTERVAL_SEC
+    max_retry_attempts = KINESIS_MAX_RETRY_ATTEMPTS
+    retry_base_delay = KINESIS_RETRY_BASE_SEC
+    retry_max_delay = KINESIS_RETRY_MAX_SEC
 
     if iterator_type not in {"TRIM_HORIZON", "LATEST"}:
         raise ValueError(
@@ -161,6 +238,12 @@ def consume_forever(client: Any | None = None) -> None:
         raise ValueError("KINESIS_RECORDS_LIMIT은 1~10000이어야 합니다.")
     if poll_interval < 0:
         raise ValueError("KINESIS_POLL_INTERVAL_SEC은 0 이상이어야 합니다.")
+    if max_retry_attempts < 0:
+        raise ValueError("KINESIS_MAX_RETRY_ATTEMPTS는 0 이상이어야 합니다.")
+    if retry_base_delay < 0 or retry_max_delay < retry_base_delay:
+        raise ValueError(
+            "Kinesis retry 시간은 0 이상이고 max가 base 이상이어야 합니다."
+        )
 
     kinesis_client = client or create_kinesis_client()
     shard_ids = list_shard_ids(kinesis_client, stream_name)
@@ -181,13 +264,103 @@ def consume_forever(client: Any | None = None) -> None:
         iterator_type,
     )
 
-    while shard_iterator:
-        shard_iterator, processed_count = poll_once(
-            kinesis_client,
-            shard_id,
-            shard_iterator,
-            records_limit,
-        )
+    retry_attempt = 0
 
-        if processed_count == 0:
-            time.sleep(poll_interval)
+    while shard_iterator:
+        try:
+            shard_iterator, processed_count = poll_once(
+                kinesis_client,
+                shard_id,
+                shard_iterator,
+                records_limit,
+            )
+            retry_attempt = 0
+
+            if processed_count == 0:
+                time.sleep(poll_interval)
+
+        except ClientError as error:
+            error_type = get_kinesis_error_type(error)
+            inventory_kinesis_errors_total.labels(error_type=error_type).inc()
+
+            if error_type == "ExpiredIteratorException":
+                inventory_kinesis_retries_total.labels(
+                    error_type=error_type
+                ).inc()
+                logger.warning(
+                    "Kinesis iterator 만료로 재생성: shard=%s",
+                    shard_id,
+                )
+                shard_iterator = create_shard_iterator(
+                    kinesis_client,
+                    stream_name,
+                    shard_id,
+                    iterator_type,
+                )
+                retry_attempt = 0
+                continue
+
+            if error_type not in RETRYABLE_KINESIS_ERROR_CODES:
+                logger.exception(
+                    "재시도할 수 없는 Kinesis 오류: shard=%s error=%s",
+                    shard_id,
+                    error_type,
+                )
+                raise
+
+            retry_attempt += 1
+            if retry_attempt > max_retry_attempts:
+                logger.exception(
+                    "Kinesis 최대 재시도 횟수 초과: shard=%s error=%s attempts=%s",
+                    shard_id,
+                    error_type,
+                    max_retry_attempts,
+                )
+                raise
+
+            delay = calculate_retry_delay(
+                retry_attempt,
+                retry_base_delay,
+                retry_max_delay,
+            )
+            inventory_kinesis_retries_total.labels(error_type=error_type).inc()
+            logger.warning(
+                "Kinesis polling 재시도: shard=%s error=%s retry=%s/%s delay=%ss",
+                shard_id,
+                error_type,
+                retry_attempt,
+                max_retry_attempts,
+                delay,
+            )
+            time.sleep(delay)
+
+        except RETRYABLE_CONNECTION_ERRORS as error:
+            error_type = get_kinesis_error_type(error)
+            inventory_kinesis_errors_total.labels(error_type=error_type).inc()
+            retry_attempt += 1
+
+            if retry_attempt > max_retry_attempts:
+                logger.exception(
+                    "Kinesis 연결 최대 재시도 횟수 초과: "
+                    "shard=%s error=%s attempts=%s",
+                    shard_id,
+                    error_type,
+                    max_retry_attempts,
+                )
+                raise
+
+            delay = calculate_retry_delay(
+                retry_attempt,
+                retry_base_delay,
+                retry_max_delay,
+            )
+            inventory_kinesis_retries_total.labels(error_type=error_type).inc()
+            logger.warning(
+                "Kinesis 연결 재시도: shard=%s error=%s retry=%s/%s delay=%ss",
+                shard_id,
+                error_type,
+                retry_attempt,
+                max_retry_attempts,
+                delay,
+            )
+            time.sleep(delay)

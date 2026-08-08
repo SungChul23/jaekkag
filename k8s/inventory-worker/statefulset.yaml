@@ -24,7 +24,6 @@ spec:
 
       containers:
         - name: inventory-worker
-          # image: INVENTORY_WORKER_ECR_IMAGE_URI:latest
           image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/inventory-worker:49ee246
           imagePullPolicy: Always
 
