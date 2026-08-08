@@ -1,40 +1,52 @@
-name: Build and Push Images
+name: Build, Push and Update Manifests
 
-# 지금은 Actions 화면에서 직접 실행할 때만 동작한다.
-# ECR 및 EKS 준비가 끝나면 main push 자동 실행을 추가한다.
 on:
+  # 애플리케이션 코드 또는 워크플로가 main에 반영되면 자동 실행
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/**"
+      - ".github/workflows/build-and-push.yml"
+
+  # GitHub Actions 화면에서도 수동 실행 가능
   workflow_dispatch:
 
-# 저장소 코드를 읽는 데 필요한 최소 권한
+# 이미지 빌드 후 Kubernetes 매니페스트를 수정하고
+# main 브랜치에 Push하기 위해 쓰기 권한 사용
 permissions:
-  contents: read
+  contents: write
 
 env:
-  # 프로젝트 공통 AWS 리전
   AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "827913617635"
+  ECR_REGISTRY: 827913617635.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
+  # ==========================================================
+  # 1. 애플리케이션별 이미지 빌드 및 ECR Push
+  # ==========================================================
   build-and-push:
     name: Build ${{ matrix.service }}
     runs-on: ubuntu-latest
 
-    # 세 애플리케이션 이미지를 같은 방식으로 각각 빌드한다.
     strategy:
       matrix:
         include:
           - service: order-api
             context: apps/order-api
+
           - service: outbox-publisher
             context: apps/outbox-publisher
+
           - service: inventory-worker
             context: apps/inventory-worker
 
     steps:
-      # GitHub 저장소 코드를 Runner로 내려받는다.
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # GitHub Secrets에 저장된 팀 AWS 키로 인증한다.
+      # GitHub Secrets에 저장된 AWS Access Key 사용
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -42,20 +54,70 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 인증된 AWS 계정의 ECR에 Docker가 로그인한다.
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Git commit SHA를 이미지 태그로 사용하여 추적 가능하게 만든다.
+      # main에 반영된 Git Commit SHA를 이미지 태그로 사용
       - name: Build and push image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build \
-            -t $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG \
-            ${{ matrix.context }}
+            -t "${ECR_REGISTRY}/${{ matrix.service }}:${IMAGE_TAG}" \
+            "${{ matrix.context }}"
 
           docker push \
-            $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG
+            "${ECR_REGISTRY}/${{ matrix.service }}:${IMAGE_TAG}"
+
+  # ==========================================================
+  # 2. Kubernetes 이미지 태그 변경
+  # ==========================================================
+  update-manifests:
+    name: Update Kubernetes image tags
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update image tags
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          sed -i \
+            "s|image: .*amazonaws.com/order-api:.*|image: ${ECR_REGISTRY}/order-api:${IMAGE_TAG}|" \
+            k8s/order-api/deployment.yaml
+
+          sed -i \
+            "s|image: .*amazonaws.com/outbox-publisher:.*|image: ${ECR_REGISTRY}/outbox-publisher:${IMAGE_TAG}|" \
+            k8s/publisher/deployment.yaml
+
+          sed -i \
+            "s|image: .*amazonaws.com/inventory-worker:.*|image: ${ECR_REGISTRY}/inventory-worker:${IMAGE_TAG}|" \
+            k8s/inventory-worker/statefulset.yaml
+
+      # 변경된 이미지 태그를 main에 반영하면
+      # Argo CD가 감지하여 EKS에 자동 배포한다.
+      - name: Commit and push manifest changes
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          if git diff --quiet; then
+            echo "No manifest changes"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            k8s/order-api/deployment.yaml \
+            k8s/publisher/deployment.yaml \
+            k8s/inventory-worker/statefulset.yaml
+
+          git commit -m "Deploy: update image tags to ${IMAGE_TAG} [skip ci]"
+          git push origin main
