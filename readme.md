@@ -20,7 +20,7 @@ Outbox Pattern과 Amazon Kinesis Data Streams를 사용해 주문 이벤트 유�
 
 ## 📐 아키텍처
 
-![Architecture](./assets/jaekkag_arc.png)
+![Architecture](./assets/jaekkag_arc_v3.png)
 
 ```text
 k6 부하 테스트
