@@ -14,3 +14,16 @@ resources:
 
   # 이커머스 통합 Grafana 대시보드
   - grafana/ecommerce-dashboard.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Prometheus 메트릭 수집 대상
+  - prometheus/service-monitors.yaml
+
+  # Prometheus 장애 감지 규칙
+  - prometheus/alert-rules.yaml
+
+  # Grafana 통합 대시보드
+  - grafana/ecommerce-dashboard.yaml
