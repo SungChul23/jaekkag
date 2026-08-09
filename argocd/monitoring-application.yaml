@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce-monitoring
+  namespace: argocd
+
+spec:
+  # 기본 Argo CD 프로젝트 사용
+  project: default
+
+  source:
+    # 팀 GitHub 저장소
+    repoURL: https://github.com/SungChul23/jaekkag.git
+
+    # main 브랜치의 모니터링 설정을 배포
+    targetRevision: main
+    path: monitoring
+
+  destination:
+    # 현재 Argo CD가 설치된 EKS 클러스터
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      # Git에서 삭제된 모니터링 리소스도 클러스터에서 제거
+      prune: true
+
+      # 클러스터에서 수동 변경된 설정을 Git 기준으로 복구
+      selfHeal: true
+
+    syncOptions:
+      # monitoring Namespace가 없을 경우 자동 생성
+      - CreateNamespace=true

@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Order API, Publisher, Worker의 Prometheus 수집 설정
+  - prometheus/service-monitors.yaml
