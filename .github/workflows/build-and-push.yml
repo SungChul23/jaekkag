@@ -46,7 +46,48 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+      # OIDC 인증 실패 원인 확인용
+      # 토큰 자체는 출력하지 않고 신뢰 정책 비교에 필요한 Claim만 출력한다.
+      - name: Show OIDC identity claims
+        shell: bash
+        run: |
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")"
 
+          OIDC_TOKEN="$(echo "${OIDC_RESPONSE}" | jq -r '.value')"
+          OIDC_PAYLOAD="$(echo "${OIDC_TOKEN}" | cut -d '.' -f 2)"
+
+          python - "${OIDC_PAYLOAD}" <<'PY'
+          import base64
+          import json
+          import sys
+
+          payload = sys.argv[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          visible_claims = {
+              key: claims.get(key)
+              for key in [
+                  "aud",
+                  "sub",
+                  "repository",
+                  "ref",
+                  "event_name",
+              ]
+          }
+
+          print(json.dumps(visible_claims, indent=2))
+          PY
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::827913617635:role/ecommerce-dev-github-actions-role
+          role-session-name: jaekkag-github-actions
+          aws-region: ${{ env.AWS_REGION }}
+          
       # GitHub Secrets에 저장된 AWS Access Key 사용
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
