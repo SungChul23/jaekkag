@@ -1,0 +1,282 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-grafana-dashboard
+  namespace: monitoring
+  labels:
+    # Grafana Sidecar가 이 ConfigMap을 대시보드로 자동 등록
+    grafana_dashboard: "1"
+
+data:
+  ecommerce-dashboard.json: |
+    {
+      "title": "Ecommerce Order & Inventory Pipeline",
+      "uid": "ecommerce-pipeline",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "tags": [
+        "ecommerce",
+        "order",
+        "inventory"
+      ],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Order TPS",
+          "type": "stat",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 8,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(order_requests_total[1m]))",
+              "legendFormat": "Orders/sec"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Order Failure Rate",
+          "type": "stat",
+          "gridPos": {
+            "x": 8,
+            "y": 0,
+            "w": 8,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(order_failure_total[1m]))",
+              "legendFormat": "Failures/sec"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.01
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Order API P95 Latency",
+          "type": "stat",
+          "gridPos": {
+            "x": 16,
+            "y": 0,
+            "w": 8,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(order_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "P95"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Outbox Event Status",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max(outbox_pending_events)",
+              "legendFormat": "Pending"
+            },
+            {
+              "refId": "B",
+              "expr": "max(outbox_failed_events)",
+              "legendFormat": "Failed"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "title": "Pipeline Processing Rate",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 5,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(outbox_publish_total[1m]))",
+              "legendFormat": "Kinesis Publish/sec"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(inventory_processed_total[1m]))",
+              "legendFormat": "Inventory Process/sec"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "title": "Inventory Processing Results",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 13,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(inventory_out_of_stock_total[1m]))",
+              "legendFormat": "Out of stock/sec"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(inventory_duplicate_events_total[1m]))",
+              "legendFormat": "Duplicate/sec"
+            },
+            {
+              "refId": "C",
+              "expr": "sum(rate(inventory_failed_total[1m]))",
+              "legendFormat": "Failed/sec"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "title": "Kinesis Iterator Age",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 13,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "inventory_kinesis_iterator_age_milliseconds",
+              "legendFormat": "{{shard_id}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms"
+            },
+            "overrides": []
+          }
+        }
+      ]
+    }

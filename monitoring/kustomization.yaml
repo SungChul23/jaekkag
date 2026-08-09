@@ -4,3 +4,13 @@ kind: Kustomization
 resources:
   # Order API, Publisher, Worker의 Prometheus 수집 설정
   - prometheus/service-monitors.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # 애플리케이션 Prometheus 수집 설정
+  - prometheus/service-monitors.yaml
+
+  # 이커머스 통합 Grafana 대시보드
+  - grafana/ecommerce-dashboard.yaml
