@@ -16,6 +16,7 @@ on:
 # main 브랜치에 Push하기 위해 쓰기 권한 사용
 permissions:
   contents: write
+  id-token: write
 
 env:
   AWS_REGION: us-east-1
@@ -50,8 +51,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::827913617635:role/ecommerce-dev-github-actions-role
+          role-session-name: jaekkag-github-actions
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
