@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ecommerce-alert-rules
+  namespace: monitoring
+  labels:
+    # kube-prometheus-stack Prometheus가 규칙을 선택하기 위한 Label
+    release: kube-prometheus-stack
+
+spec:
+  groups:
+    - name: ecommerce.application.rules
+      rules:
+        # 최근 5분 동안 주문 처리 실패가 발생한 경우
+        - alert: OrderApiFailureDetected
+          expr: sum(increase(order_failure_total[5m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+            service: order-api
+          annotations:
+            summary: "Order API 주문 실패 발생"
+            description: "최근 5분 동안 주문 처리 실패가 발생했습니다."
+
+        # Outbox 대기 이벤트가 계속 쌓이는 경우
+        - alert: OutboxBacklogHigh
+          expr: max(outbox_pending_events) > 100
+          for: 2m
+          labels:
+            severity: warning
+            service: outbox-publisher
+          annotations:
+            summary: "Outbox 대기 이벤트 증가"
+            description: "Outbox 대기 이벤트가 2분 이상 100건을 초과했습니다."
+
+        # Kinesis 발행 실패가 발생한 경우
+        - alert: OutboxPublishFailureDetected
+          expr: sum(increase(outbox_publish_errors_total[5m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+            service: outbox-publisher
+          annotations:
+            summary: "Kinesis 이벤트 발행 실패"
+            description: "최근 5분 동안 Kinesis 이벤트 발행 실패가 발생했습니다."
+
+        # Inventory Worker 처리 실패가 발생한 경우
+        - alert: InventoryProcessingFailureDetected
+          expr: sum(increase(inventory_failed_total[5m])) > 0
+          for: 1m
+          labels:
+            severity: critical
+            service: inventory-worker
+          annotations:
+            summary: "재고 이벤트 처리 실패"
+            description: "최근 5분 동안 Inventory Worker 처리 실패가 발생했습니다."
+
+        # Kinesis 소비 지연이 1분 이상 지속되는 경우
+        - alert: KinesisConsumerLagHigh
+          expr: max(inventory_kinesis_iterator_age_milliseconds) > 60000
+          for: 2m
+          labels:
+            severity: warning
+            service: inventory-worker
+          annotations:
+            summary: "Kinesis 소비 지연 증가"
+            description: "Inventory Worker의 Kinesis 소비 지연이 2분 이상 60초를 초과했습니다."
