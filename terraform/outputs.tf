@@ -92,3 +92,9 @@ output "worker_iam_role_arn" {
   description = "Inventory Worker IAM Role ARN"
   value       = aws_iam_role.worker.arn
 }
+
+# GitHub Actions workflow의 role-to-assume에 사용할 IAM Role ARN
+output "github_actions_role_arn" {
+  description = "GitHub Actions OIDC IAM Role ARN"
+  value       = aws_iam_role.github_actions.arn
+}
