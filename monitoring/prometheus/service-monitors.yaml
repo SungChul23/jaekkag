@@ -1,0 +1,80 @@
+# ============================================================
+# Order API ServiceMonitor
+# ============================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-api
+  namespace: monitoring
+  labels:
+    # kube-prometheus-stack이 이 ServiceMonitor를 선택하기 위한 Label
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - ecommerce
+
+  selector:
+    matchLabels:
+      app: order-api
+
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+---
+# ============================================================
+# Outbox Publisher ServiceMonitor
+# ============================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: outbox-publisher
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - ecommerce
+
+  selector:
+    matchLabels:
+      app: outbox-publisher
+
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+---
+# ============================================================
+# Inventory Worker ServiceMonitor
+# ============================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: inventory-worker
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - ecommerce
+
+  selector:
+    matchLabels:
+      app: inventory-worker
+
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
