@@ -42,13 +42,14 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       ]
     }
 
-    # 지정한 GitHub 저장소의 main 브랜치에서만 Role 사용 허용
+    # 이 GitHub 저장소는 OIDC Subject에 소유자 ID와 저장소 ID가 포함된다.
+    # 실제 발급된 Subject와 일치시키고 main 브랜치 실행만 허용한다.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:SungChul23/jaekkag:ref:refs/heads/main"
+        "repo:SungChul23@143672987/jaekkag@1318122350:ref:refs/heads/main"
       ]
     }
   }
