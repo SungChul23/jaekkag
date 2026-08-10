@@ -374,35 +374,110 @@ k6 run load-test/stockout-test.js
 
 **orders**
 ```
-order_id       BIGINT AUTO_INCREMENT PK
-product_id     VARCHAR(10)
-quantity       INT
-status         ENUM('CREATED','CONFIRMED','CANCELLED')
-created_at     ...
+CREATE TABLE orders (
+    order_id      BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    product_id    VARCHAR(10)  NOT NULL,
+    quantity      INT          NOT NULL,
+    order_status  ENUM('CREATED','CONFIRMED','CANCELLED')  NOT NULL DEFAULT 'CREATED',
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_product_id (product_id),
+    INDEX idx_created_at (created_at)
+);
 ```
 
 **outbox_events**
 ```
-event_id         VARCHAR(36) PK (UUID)
-order_id         BIGINT
-product_id       VARCHAR(10)
-quantity         INT
-event_type       VARCHAR (예: ORDER_CREATED)
-publish_status   ENUM('PENDING','PUBLISHED','FAILED')
-retry_count      INT (MAX_RETRY=5 넘으면 FAILED)
-created_at       ...
+CREATE TABLE outbox_events (
+    id            BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    event_id      VARCHAR(36)  NOT NULL UNIQUE,
+    event_type    VARCHAR(50)  NOT NULL,
+    order_id      BIGINT       NOT NULL,
+    product_id    VARCHAR(10)  NOT NULL,
+    quantity      INT          NOT NULL,
+    publish_status ENUM('PENDING','PUBLISHED','FAILED') NOT NULL DEFAULT 'PENDING',
+    retry_count   INT          NOT NULL DEFAULT 0,
+    last_error    TEXT         NULL,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at  DATETIME     NULL,
+
+    INDEX idx_status_created (publish_status, created_at)
+);
 ```
 
 **master_inventory**
 ```
-product_id     VARCHAR(10) PK
-stock          INT
+CREATE TABLE IF NOT EXISTS master_inventory (
+    product_id       VARCHAR(10)  NOT NULL,
+    model_name       VARCHAR(30)  NOT NULL,
+    color_name       VARCHAR(30)  NOT NULL,
+    stock_quantity   INT          NOT NULL,
+    updated_at       DATETIME(6)  NOT NULL
+                                  DEFAULT CURRENT_TIMESTAMP(6)
+                                  ON UPDATE CURRENT_TIMESTAMP(6),
+
+    PRIMARY KEY (product_id),
+
+    CONSTRAINT uq_master_inventory_model_color
+        UNIQUE (model_name, color_name),
+
+    CONSTRAINT chk_master_inventory_stock
+        CHECK (stock_quantity >= 0),
+
+    CONSTRAINT chk_master_inventory_model
+        CHECK (
+            model_name IN ('FOLD', 'FLIP', 'ULTRA')
+        ),
+
+    CONSTRAINT chk_master_inventory_color
+        CHECK (
+            color_name IN ('BLACK', 'WHITE', 'LAVENDER', 'GRAY')
+        )
+);
 ```
 
 **processed_events**
 ```
-event_id       VARCHAR(36) PK
-order_id       BIGINT
-status         ENUM('SUCCESS','DUPLICATE','OUT_OF_STOCK','FAILED')
-processed_at   ...
+CREATE TABLE IF NOT EXISTS processed_events (
+    event_id         CHAR(36)      NOT NULL,
+    order_id         BIGINT        NOT NULL,
+    product_id       VARCHAR(10)   NOT NULL,
+    model_name       VARCHAR(30)   NOT NULL,
+    color_name       VARCHAR(30)   NOT NULL,
+    quantity         INT           NOT NULL,
+    process_status   VARCHAR(30)   NOT NULL,
+    error_message    TEXT          NULL,
+    processed_at     DATETIME(6)   NOT NULL
+                                   DEFAULT CURRENT_TIMESTAMP(6),
+
+    PRIMARY KEY (event_id),
+
+    CONSTRAINT chk_processed_events_quantity
+        CHECK (quantity > 0),
+
+    CONSTRAINT chk_processed_events_status
+        CHECK (
+            process_status IN (
+                'SUCCESS',
+                'OUT_OF_STOCK',
+                'FAILED'
+            )
+        ),
+
+    CONSTRAINT chk_processed_events_model
+        CHECK (
+            model_name IN ('FOLD', 'FLIP', 'ULTRA')
+        ),
+
+    CONSTRAINT chk_processed_events_color
+        CHECK (
+            color_name IN ('BLACK', 'WHITE', 'LAVENDER', 'GRAY')
+        ),
+
+    INDEX idx_processed_events_order_id (order_id),
+    INDEX idx_processed_events_product_id (product_id),
+    INDEX idx_processed_events_status (process_status),
+    INDEX idx_processed_events_processed_at (processed_at)
+);
 ```
