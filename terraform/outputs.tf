@@ -98,3 +98,9 @@ output "github_actions_role_arn" {
   description = "GitHub Actions OIDC IAM Role ARN"
   value       = aws_iam_role.github_actions.arn
 }
+
+# Cluster Autoscaler Pod Identity에 연결되는 IAM Role ARN
+output "cluster_autoscaler_iam_role_arn" {
+  description = "Cluster Autoscaler IAM Role ARN"
+  value       = aws_iam_role.cluster_autoscaler.arn
+}
