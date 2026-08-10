@@ -12,9 +12,10 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: order-api
-
+   # 평상시 Order API Pod 최소 2개 유지
   minReplicas: 2
-  maxReplicas: 4
+  # 주문 트래픽 증가 시 최대 8개까지 자동 확장
+  maxReplicas: 8
 
   metrics:
     - type: Resource
