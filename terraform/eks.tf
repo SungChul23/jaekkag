@@ -171,13 +171,13 @@ resource "aws_eks_node_group" "main" {
 
   scaling_config {
     # 기본 Worker Node 수
-    desired_size = 2
+    desired_size = 3
 
     # 최소 Worker Node 수
-    min_size = 1
+    min_size = 2
 
     # 최대 Worker Node 수
-    max_size = 3
+    max_size = 4
   }
 
   update_config {

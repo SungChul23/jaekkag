@@ -1,0 +1,50 @@
+# ============================================================
+# Cluster Autoscaler 설정
+# ============================================================
+
+# 자동으로 관리할 EKS Cluster
+autoDiscovery:
+  clusterName: ecommerce-dev-eks
+
+# EKS Cluster가 구성된 AWS Region
+awsRegion: us-east-1
+
+# Cluster Autoscaler는 Kubernetes와 같은 Minor 버전을 사용한다.
+# 현재 EKS Kubernetes 1.36에 맞춰 v1.36.0 사용
+image:
+  tag: v1.36.0
+
+# Terraform의 Pod Identity Association에서 지정한
+# ServiceAccount 이름과 동일해야 한다.
+rbac:
+  serviceAccount:
+    create: true
+    name: cluster-autoscaler
+
+# 자동 확장 동작 설정
+extraArgs:
+  # 동일한 사양의 Node Group이 여러 개라면 균형 있게 확장
+  balance-similar-node-groups: "true"
+
+  # 새 Node를 추가할 때 낭비가 가장 적은 Node Group 선택
+  expander: least-waste
+
+  # 로컬 스토리지를 사용하는 Pod가 있어도 축소 판단 허용
+  skip-nodes-with-local-storage: "false"
+
+# Node 축소 과정에서 Cluster Autoscaler Pod 자체가
+# 우선 제거되지 않도록 설정
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+
+# 클러스터 운영에 필요한 중요 시스템 Pod로 지정
+priorityClassName: system-cluster-critical
+
+# Cluster Autoscaler Pod에 할당할 리소스
+resources:
+  requests:
+    cpu: 100m
+    memory: 300Mi
+  limits:
+    cpu: 200m
+    memory: 600Mi
