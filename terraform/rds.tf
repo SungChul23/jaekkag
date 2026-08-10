@@ -43,6 +43,9 @@ resource "aws_security_group" "rds" {
 resource "aws_db_instance" "main" {
   identifier = "${local.name_prefix}-rds"
 
+  # 프로젝트 DB 엔진
+  engine = "mysql"
+
   # 스파이크 테스트에서 db.t3.micro의 DB 연결 한도가
   # 병목으로 확인되어 메모리와 연결 여유 확보를 위해 상향
   instance_class = "db.t3.small"
