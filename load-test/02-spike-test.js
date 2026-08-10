@@ -1,5 +1,4 @@
 // [2] 타임세일 시작 - k6 부하 급증
-// t3.medium x2, Kinesis 3샤드, Publisher 배치 500 기준 -> 3000이 아니라 400 RPS 피크로 설정
 import http from 'k6/http';
 import { check } from 'k6';
 
@@ -10,15 +9,17 @@ export const options = {
   scenarios: {
     spike: {
       executor: 'ramping-arrival-rate',
-      startRate: 20,
+      startRate: 10,
       timeUnit: '1s',
-      preAllocatedVUs: 50,
-      maxVUs: 200,
+      preAllocatedVUs: 30,
+      maxVUs: 150,
       stages: [
-        { target: 100, duration: '10s' },  // 서서히 증가
-        { target: 400, duration: '20s' },  // 타임세일 피크
-        { target: 400, duration: '20s' },  // 피크 유지 -> HPA 반응 관찰 (03번 참고)
-        { target: 0, duration: '10s' },    // 종료
+        { target: 50, duration: '10s' },
+        { target: 100, duration: '10s' },
+        { target: 150, duration: '10s' },
+        { target: 200, duration: '10s' },
+        { target: 200, duration: '20s' },
+        { target: 0, duration: '10s' },
       ],
     },
   },
