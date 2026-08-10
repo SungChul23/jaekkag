@@ -107,37 +107,61 @@ t3.medium x2, 샤드 3, Publisher 배치 500 기준으로 3,000이 아니라 **4
 import http from 'k6/http';
 import { check } from 'k6';
 
+// 테스트 대상 서버 주소. 환경변수 BASE_URL이 있으면 그걸 쓰고,
+// 없으면 뒤에 있는 기본 주소(우리 ALB 주소)를 사용
 const BASE_URL = __ENV.BASE_URL || 'http://k8s-ecommerc-ecommerc-4a419899c8-564158823.us-east-1.elb.amazonaws.com';
+
+// 주문할 때 랜덤으로 골라 쓸 상품 ID 목록
+// 104는 재고소진 전용이라 여기서 일부러 빼둠 (다른 테스트랑 섞이면 안 되니까)
 const PRODUCT_IDS = ['101', '102', '103', '201', '202', '203', '204', '301', '302', '303', '304'];
 
 export const options = {
   scenarios: {
+    // 이 시나리오 이름: spike (타임세일 급증 상황을 흉내냄)
     spike: {
+      // ramping-arrival-rate: "1초에 몇 번 요청할지"를 직접 지정하는 방식.
+      // (VU 수를 정하는 게 아니라 "속도" 자체를 목표로 잡음)
       executor: 'ramping-arrival-rate',
+
+      // 테스트 시작 시점의 목표 속도: 초당 20건
       startRate: 20,
+
+      // 위 startRate의 단위 시간 = 1초 기준
       timeUnit: '1s',
+
+      // 미리 대기시켜 둘 가상유저(VU) 수.
+      // 목표 속도를 맞추기 위해 처음부터 50명을 준비해둠
       preAllocatedVUs: 50,
+
+      // 필요하면 최대 이만큼까지 VU를 늘려도 됨 (부족하면 k6가 자동으로 늘림)
       maxVUs: 200,
+
+      // 단계별로 목표 속도(target)를 바꿔가는 구간들
       stages: [
-        { target: 100, duration: '10s' },  // 서서히 증가
-        { target: 400, duration: '20s' },  // 타임세일 피크
-        { target: 400, duration: '20s' },  // 피크 유지 -> HPA 반응 관찰
-        { target: 0, duration: '10s' },    // 종료
+        { target: 100, duration: '10s' },  // 0~10초: 20 -> 100건/초로 서서히 증가 (트래픽 몰리기 시작)
+        { target: 400, duration: '20s' },  // 10~30초: 100 -> 400건/초로 급증 (타임세일 피크 진입)
+        { target: 400, duration: '20s' },  // 30~50초: 400건/초로 그대로 유지 (HPA가 Pod를 늘리는지 관찰하는 구간)
+        { target: 0, duration: '10s' },    // 50~60초: 400 -> 0건/초로 감소 (타임세일 종료, 트래픽 빠짐)
       ],
     },
   },
 };
 
+// 가상유저(VU)가 반복해서 실행하는 실제 요청 로직
 export default function () {
+  // 주문 요청 body 생성: 상품은 랜덤 선택, 수량은 1~3개 중 랜덤
   const payload = JSON.stringify({
     product_id: PRODUCT_IDS[Math.floor(Math.random() * PRODUCT_IDS.length)],
     quantity: Math.floor(Math.random() * 3) + 1,
   });
 
+  // Order API로 POST /orders 요청 전송
   const res = http.post(`${BASE_URL}/orders`, payload, {
     headers: { 'Content-Type': 'application/json' },
   });
 
+  // 응답 상태코드가 201(정상 생성)인지 체크
+  // (실패해도 테스트가 멈추진 않고, 결과 리포트에 실패율로 집계됨)
   check(res, { 'status is 201': (r) => r.status === 201 });
 }
 ```
