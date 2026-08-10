@@ -26,7 +26,7 @@ engine = create_engine(
     max_overflow=5,
     pool_timeout=20,    # 10 → 20으로 살짝 늘림 (너무 성급하게 실패 안 하도록)
     pool_recycle=600,   # 300 → 600 (10분, 적당한 절충)
-)
+)  
 
 SessionLocal = sessionmaker(
     autocommit=False,
