@@ -46,14 +46,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::827913617635:role/ecommerce-dev-github-actions-role
-          role-session-name: jaekkag-github-actions
-          aws-region: ${{ env.AWS_REGION }}
-          
-      # GitHub Secrets에 저장된 AWS Access Key 사용
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
