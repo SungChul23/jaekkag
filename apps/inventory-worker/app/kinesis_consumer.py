@@ -54,6 +54,14 @@ RETRYABLE_CONNECTION_ERRORS = (
     ReadTimeoutError,
 )
 
+# 재시도해도 절대 성공할 수 없는 오류: 레코드 자체의 형식 문제.
+# 이런 레코드는 재시도 대신 스킵해서 뒤에 있는 정상 레코드가 처리되도록 한다.
+UNRECOVERABLE_RECORD_ERRORS = (
+    json.JSONDecodeError,
+    KeyError,
+    UnicodeDecodeError,
+)
+
 
 def decode_kinesis_record(record: dict[str, Any]) -> dict[str, Any]:
     """Kinesis 레코드의 Data를 주문 이벤트 딕셔너리로 변환한다."""
@@ -204,7 +212,18 @@ def poll_once(
     for record in response.get("Records", []):
         try:
             process_kinesis_record(record)
+        except UNRECOVERABLE_RECORD_ERRORS:
+            # 형식이 깨진 레코드는 재시도해도 절대 성공하지 않으므로,
+            # 로그만 남기고 스킵해서 뒤에 있는 정상 레코드가 처리되도록 한다.
+            inventory_failed_total.inc()
+            logger.exception(
+                "Kinesis 레코드 형식 오류로 스킵: shard=%s sequence_number=%s",
+                shard_id,
+                record.get("SequenceNumber", "unknown"),
+            )
+            continue
         except Exception:
+            # DB 오류 등 일시적일 수 있는 문제는 기존처럼 재시도 대상으로 올린다.
             inventory_failed_total.inc()
             logger.exception(
                 "Kinesis 이벤트 처리 실패: shard=%s sequence_number=%s",
