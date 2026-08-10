@@ -19,10 +19,18 @@ spec:
         app: order-api
 
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: order-api
+
       containers:
         - name: order-api
 
-           # ECR 생성 후 실제 이미지 주소로 변경
+          # ECR 생성 후 실제 이미지 주소로 변경
           image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/order-api:234528f1a1102179a493392e1b6fc7dc84a695e1
           imagePullPolicy: Always
 
