@@ -22,8 +22,8 @@ DATABASE_URL = (
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,       # RDS db.t3.small 기준 여유 반영 (기존 SQLAlchemy 기본값 5)
-    max_overflow=15,    # 기존 기본값 10 -> pod당 최대 25개
+    pool_size=6,        # HPA 최대 8 Pod 동시 확장 시 RDS 한도(171) 초과 방지
+    max_overflow=10,    # pod당 최대 16개 (8개 Pod x 16 = 128, 여유 있게 한도 내)
     pool_timeout=30,
     pool_recycle=1800,
 )
