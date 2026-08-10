@@ -43,9 +43,13 @@ resource "aws_security_group" "rds" {
 resource "aws_db_instance" "main" {
   identifier = "${local.name_prefix}-rds"
 
-  # 기존 팀 개발 규격에 따라 MySQL 사용
-  engine         = "mysql"
-  instance_class = "db.t3.micro"
+  # 스파이크 테스트에서 db.t3.micro의 DB 연결 한도가
+  # 병목으로 확인되어 메모리와 연결 여유 확보를 위해 상향
+  instance_class = "db.t3.small"
+
+  # 프로젝트 테스트를 위해 다음 유지보수 시간까지 기다리지 않고
+  # 변경사항을 즉시 적용한다. 적용 과정에서 RDS가 재부팅될 수 있다.
+  apply_immediately = true
 
   # 프로젝트용 최소 스토리지로 시작하고 최대 30GB까지 자동 확장
   allocated_storage     = 20
