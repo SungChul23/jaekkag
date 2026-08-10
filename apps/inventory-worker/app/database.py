@@ -49,4 +49,4 @@ def get_connection() -> Connection:
     except pymysql.MySQLError:
         _conn = get_db_connection()
 
-    return _conn
+    return _conn 
