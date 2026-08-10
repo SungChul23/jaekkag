@@ -2,12 +2,30 @@ import pymysql
 
 from app.config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 
+_conn = None
 
-def get_conn():
+
+def _connect():
     return pymysql.connect(
         host=DB_HOST, port=DB_PORT, db=DB_NAME,
         user=DB_USER, password=DB_PASSWORD, autocommit=False,
     )
+
+
+def get_connection():
+    """Pod당 커넥션 1개를 계속 재사용한다.
+    죽은 커넥션이면 ping(reconnect=True)이 자동으로 다시 연결한다."""
+    global _conn
+    if _conn is None:
+        _conn = _connect()
+        return _conn
+
+    try:
+        _conn.ping(reconnect=True)
+    except pymysql.MySQLError:
+        _conn = _connect()
+
+    return _conn
 
 
 def fetch_and_lock_one(conn):

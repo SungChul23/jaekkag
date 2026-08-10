@@ -22,6 +22,10 @@ DATABASE_URL = (
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    pool_size=10,       # RDS db.t3.small 기준 여유 반영 (기존 SQLAlchemy 기본값 5)
+    max_overflow=15,    # 기존 기본값 10 -> pod당 최대 25개
+    pool_timeout=30,
+    pool_recycle=1800,
 )
 
 SessionLocal = sessionmaker(

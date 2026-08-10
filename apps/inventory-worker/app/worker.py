@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 from uuid import UUID
-from app.database import get_db_connection
+from app.database import get_connection
 from app.metrics import (
     inventory_duplicate_events_total,
     inventory_out_of_stock_total,
@@ -85,7 +85,7 @@ def _process_order_event(event: dict[str, Any]) -> str:
     product_id = event["product_id"]
     order_quantity = event["quantity"]
 
-    connection = get_db_connection()
+    connection = get_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -189,6 +189,3 @@ def _process_order_event(event: dict[str, Any]) -> str:
     except Exception:
         connection.rollback()
         raise
-
-    finally:
-        connection.close()

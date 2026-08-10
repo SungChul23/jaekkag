@@ -29,3 +29,24 @@ def get_db_connection() -> Connection:
         read_timeout=10,
         write_timeout=10,
     )
+
+
+_conn: Connection | None = None
+
+
+def get_connection() -> Connection:
+    """Pod당 커넥션 1개를 계속 재사용한다.
+    Kinesis shard 하나를 순차 소비하는 구조라 동시성이 없으므로
+    풀이 아니라 커넥션 1개 재사용으로 충분하다.
+    죽은 커넥션이면 ping(reconnect=True)이 자동으로 다시 연결한다."""
+    global _conn
+    if _conn is None:
+        _conn = get_db_connection()
+        return _conn
+
+    try:
+        _conn.ping(reconnect=True)
+    except pymysql.MySQLError:
+        _conn = get_db_connection()
+
+    return _conn
