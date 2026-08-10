@@ -24,7 +24,7 @@ spec:
 
       containers:
         - name: inventory-worker
-          image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/inventory-worker:7e0f41b32fe52944740014fb24e68e0099b4671f
+          image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/inventory-worker:c7c550efb2c69eef65e55045c8b9cde959018fa7
           imagePullPolicy: Always
 
           ports:
