@@ -27,7 +27,7 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "Order TPS",
+          "title": "초당 주문 요청 수",
           "type": "stat",
           "gridPos": {
             "x": 0,
@@ -63,7 +63,7 @@ data:
         },
         {
           "id": 2,
-          "title": "Order Failure Rate",
+          "title": "주문 실패율",
           "type": "stat",
           "gridPos": {
             "x": 8,
@@ -112,7 +112,7 @@ data:
         },
         {
           "id": 3,
-          "title": "Order API P95 Latency",
+          "title": "주문 요청 95% 처리시간",
           "type": "stat",
           "gridPos": {
             "x": 16,
@@ -148,7 +148,7 @@ data:
         },
         {
           "id": 4,
-          "title": "Outbox Event Status",
+          "title": "Outbox 이벤트 상태",
           "type": "timeseries",
           "gridPos": {
             "x": 0,
@@ -181,7 +181,7 @@ data:
         },
         {
           "id": 5,
-          "title": "Pipeline Processing Rate",
+          "title": "키네시스 발행 속도/워커 처리 속도",
           "type": "timeseries",
           "gridPos": {
             "x": 12,
@@ -214,7 +214,7 @@ data:
         },
         {
           "id": 6,
-          "title": "Inventory Processing Results",
+          "title": "재고 처리 결과",
           "type": "timeseries",
           "gridPos": {
             "x": 0,
@@ -252,7 +252,7 @@ data:
         },
         {
           "id": 7,
-          "title": "Kinesis Iterator Age",
+          "title": "재고 이벤트 처리 지연시간",
           "type": "timeseries",
           "gridPos": {
             "x": 12,
