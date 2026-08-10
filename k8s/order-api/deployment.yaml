@@ -9,6 +9,14 @@ metadata:
 spec:
   replicas: 2
 
+  # 롤링 업데이트 중 추가 Pod를 만들지 않고
+  # 기존 Pod 1개를 먼저 종료하여 Pod 슬롯을 확보
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+      
   selector:
     matchLabels:
       app: order-api
