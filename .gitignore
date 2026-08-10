@@ -27,3 +27,6 @@ Thumbs.db
 secret.yaml
 *-secret.yaml
 !secret.example.yaml
+
+# scripts
+scripts/.runtime/
