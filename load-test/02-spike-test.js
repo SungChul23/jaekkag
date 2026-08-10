@@ -1,4 +1,4 @@
-// [2] 타임세일 시작 - k6 부하 급증
+// [2] 타임세일 시작 - k6 부하 급증 (안정성 우선 버전)
 import http from 'k6/http';
 import { check } from 'k6';
 
@@ -14,12 +14,11 @@ export const options = {
       preAllocatedVUs: 30,
       maxVUs: 150,
       stages: [
-        { target: 50, duration: '10s' },
-        { target: 100, duration: '10s' },
-        { target: 150, duration: '10s' },
-        { target: 200, duration: '10s' },
-        { target: 200, duration: '20s' },
-        { target: 0, duration: '10s' },
+        { target: 80, duration: '15s' },   // 서서히 증가 (HPA가 미리 반응할 시간 확보)
+        { target: 150, duration: '15s' },  // 중간 단계
+        { target: 200, duration: '10s' },  // 피크 도달
+        { target: 200, duration: '10s' },  // 피크 유지 (기존 20s → 10s로 단축)
+        { target: 0, duration: '10s' },    // 종료
       ],
     },
   },
