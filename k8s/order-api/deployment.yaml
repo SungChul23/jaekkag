@@ -39,7 +39,7 @@ spec:
         - name: order-api
 
           # ECR 생성 후 실제 이미지 주소로 변경
-          image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/order-api:564a5d27f69c862b370ed1c633a56e02729f918d
+          image: 827913617635.dkr.ecr.us-east-1.amazonaws.com/order-api:7e0f41b32fe52944740014fb24e68e0099b4671f
           imagePullPolicy: Always
 
           ports:
