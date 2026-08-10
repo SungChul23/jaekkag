@@ -22,10 +22,10 @@ DATABASE_URL = (
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=6,        # HPA 최대 8 Pod 동시 확장 시 RDS 한도(171) 초과 방지
-    max_overflow=10,    # pod당 최대 16개 (8개 Pod x 16 = 128, 여유 있게 한도 내)
-    pool_timeout=30,
-    pool_recycle=1800,
+    pool_size=5,        # 1번님 값 유지 (안전한 총량)
+    max_overflow=5,
+    pool_timeout=20,    # 10 → 20으로 살짝 늘림 (너무 성급하게 실패 안 하도록)
+    pool_recycle=600,   # 300 → 600 (10분, 적당한 절충)
 )
 
 SessionLocal = sessionmaker(
