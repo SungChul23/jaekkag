@@ -1,4 +1,4 @@
-// [2] 타임세일 시작 - k6 부하 급증 (안정성 우선 버전)
+// [2] 타임세일 시작 - k6 부하 급증 (최대 안정성 버전)
 import http from 'k6/http';
 import { check } from 'k6';
 
@@ -9,16 +9,16 @@ export const options = {
   scenarios: {
     spike: {
       executor: 'ramping-arrival-rate',
-      startRate: 10,
+      startRate: 5,
       timeUnit: '1s',
-      preAllocatedVUs: 30,
-      maxVUs: 150,
+      preAllocatedVUs: 15,
+      maxVUs: 70,
       stages: [
-        { target: 80, duration: '15s' },   // 서서히 증가 (HPA가 미리 반응할 시간 확보)
-        { target: 150, duration: '15s' },  // 중간 단계
-        { target: 200, duration: '10s' },  // 피크 도달
-        { target: 200, duration: '10s' },  // 피크 유지 (기존 20s → 10s로 단축)
-        { target: 0, duration: '10s' },    // 종료
+        { target: 40, duration: '10s' }, // 0~10s: 5 → 40 RPS로 상승
+        { target: 70, duration: '10s' }, // 10~20s: 40 → 70 RPS로 상승
+        { target: 90, duration: '10s' }, // 20~30s: 70 → 90 RPS로 상승 (피크 도달)
+        { target: 90, duration: '15s' }, // 30~45s: 90 RPS 유지 (피크 지속)
+        { target: 0, duration: '10s' },  // 45~55s: 90 → 0 RPS로 감소 (쿨다운)
       ],
     },
   },
@@ -36,10 +36,3 @@ export default function () {
 
   check(res, { 'status is 201': (r) => r.status === 201 });
 }
-
-/*
-실행 (터미널 A):
-  k6 run load-test/02-spike-test.js
-
-이 스크립트가 도는 동안 03-hpa-watch.md, 04-kinesis-lag.md를 별도 터미널에서 같이 실행할 것.
-*/

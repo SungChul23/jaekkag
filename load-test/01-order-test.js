@@ -10,9 +10,9 @@ const PRODUCT_IDS = ['101', '102', '103', '201', '202', '203', '204', '301', '30
 export const options = {
   scenarios: {
     normal_order: {
-      executor: 'constant-vus',
-      vus: 5,
-      duration: '20s',
+      executor: 'constant-vus', //고정된 가상 사용자 수를 처음부터 끝까지 그대로 유지하는 방식
+      vus: 5,                  // 5명의 가상 사용자가
+      duration: '20s',         // 20초 동안 쉬지 않고 반복
     },
   },
 };
