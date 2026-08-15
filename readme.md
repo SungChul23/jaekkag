@@ -268,6 +268,18 @@ Helm `kube-prometheus-stack`(Prometheus, Grafana, Alertmanager, Operator, kube-s
 
 k6 부하 테스트와 장애 주입으로 6가지 시나리오를 검증했습니다.
 
+### 테스트 영상
+
+| 시나리오 | 영상 |
+|---|---|
+| 1. 평상시 흐름 | ![video](https://github.com/user-attachments/assets/892a7c59-8b72-489a-8546-a92572b025c3) |
+| 2. 스파이크 부하 | ![video](https://github.com/user-attachments/assets/c88443e1-29e2-4f91-81ff-2c154b6c34b7) |
+| 3. Pod 강제 장애 | ![video](https://github.com/user-attachments/assets/3eb82d13-06f4-4f5a-8487-fb51097eabe3) |
+| 4. 재고 소진 테스트 | ![video](https://github.com/user-attachments/assets/ef9220c8-2676-4fff-bfb7-1e846bc1bb68) |
+| 5. 중복 이벤트 발행 | ![video](https://github.com/user-attachments/assets/2633eabd-d0c4-4a69-82cc-ab5a0ea10466) |
+
+### 시나리오 파일
+
 | 순서 | 파일 | 검증 목적 |
 |---:|---|---|
 | 1 | `⭐ 01-order-test.js` | 일반 주문 및 전체 파이프라인 정상 처리 |
@@ -288,12 +300,14 @@ k6 부하 테스트와 장애 주입으로 6가지 시나리오를 검증했습�
 전 구간 요청 성공, HPA 자동 확장(2→4 Pod), Worker 장애 후 이벤트 복구, 중복 이벤트 1회만 차감, 재고 음수 미발생을 확인했습니다.
 
 **지연시간 분석**
- 
+
 Spike Test의 최대 응답시간(977ms)은 평균(246ms) 대비 약 4배 벌어졌습니다. 원인은 두 가지가 겹친 것으로 확인했습니다.
- 
+
 - **Pod 콜드 스타트**: HPA가 신규 Pod를 기동하는 짧은 과도기 동안, 기존 Pod만으로 늘어난 트래픽을 처리해야 했습니다.
 - **RDS 커넥션 풀 경합**: RDS Proxy 없이 각 Pod가 DB에 직접 연결하는 구조라, Pod 수가 늘어날 때마다 커넥션 풀 요청이 함께 늘면서 대기가 발생했습니다.
+
 두 지연이 같은 과도기 구간에서 겹치며 꼬리 구간(P95~최대) 응답시간을 끌어올린 것으로 보입니다. 후속 개선 과제로 남긴 **RDS Proxy 도입**과 **최소 Replica 상향**이 이 구간을 완화할 수 있을 것으로 예상합니다.
+
 ### 발견하고 개선한 문제
 
 | 문제 | 원인 | 개선 |
@@ -365,9 +379,6 @@ jaekkag/
 │   └── workflows/
 └── README.md
 ```
-
-
-
 
 ---
 
