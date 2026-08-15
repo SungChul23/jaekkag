@@ -266,17 +266,64 @@ Helm `kube-prometheus-stack`(Prometheus, Grafana, Alertmanager, Operator, kube-s
 
 ## 🧪 테스트 및 검증 결과
 
-k6 부하 테스트와 장애 주입으로 6가지 시나리오를 검증했습니다.
+k6 부하 테스트와 장애 주입으로 5가지 시나리오를 검증했습니다. (관측 가능성은 Grafana 대시보드로 별도 확인하여 이 5가지에서는 제외)
 
 ### 테스트 영상
 
-| 시나리오 | 영상 |
-|---|---|
-| 1. 평상시 흐름 | ![video](https://github.com/user-attachments/assets/892a7c59-8b72-489a-8546-a92572b025c3) |
-| 2. 스파이크 부하 | ![video](https://github.com/user-attachments/assets/c88443e1-29e2-4f91-81ff-2c154b6c34b7) |
-| 3. Pod 강제 장애 | ![video](https://github.com/user-attachments/assets/3eb82d13-06f4-4f5a-8487-fb51097eabe3) |
-| 4. 재고 소진 테스트 | ![video](https://github.com/user-attachments/assets/ef9220c8-2676-4fff-bfb7-1e846bc1bb68) |
-| 5. 중복 이벤트 발행 | ![video](https://github.com/user-attachments/assets/2633eabd-d0c4-4a69-82cc-ab5a0ea10466) |
+**1. 평상시 흐름**
+
+```
+[기본 파이프라인 테스트]
+방식: 고정된 가상 사용자 수(5명)를 처음부터 끝까지 그대로 유지
+5명의 가상 사용자가 20초 동안 쉬지 않고 반복 요청
+파드 수: 2 → 3 증가
+검증: 영상 마지막에 orders / outbox_events 테이블을 각각 SELECT하여
+      row 수가 서로 동일함을 확인 (Outbox Pattern상 주문 저장과
+      이벤트 저장이 하나의 트랜잭션으로 함께 커밋됨을 검증)
+```
+
+https://github.com/user-attachments/assets/892a7c59-8b72-489a-8546-a92572b025c3
+
+**2. 스파이크 부하 (확장성)**
+
+```
+[트래픽 급증 테스트 - Ramping Stages]
+0~10s : 5 → 40 RPS로 상승
+10~20s: 40 → 70 RPS로 상승
+20~30s: 70 → 90 RPS로 상승 (피크 도달)
+30~45s: 90 RPS 유지 (피크 지속)
+45~55s: 90 → 0 RPS로 감소 (쿨다운)
+파드 수: 2 → 4 증가
+```
+
+https://github.com/user-attachments/assets/c88443e1-29e2-4f91-81ff-2c154b6c34b7
+
+**3. Pod 강제 장애 (회복탄력성, 인벤토리 워커 파드는 3개를 유지)**
+
+https://github.com/user-attachments/assets/3eb82d13-06f4-4f5a-8487-fb51097eabe3
+
+**4. 재고 소진 테스트 (데이터 정합성)**
+
+```
+[오버셀 방지 테스트]
+대상: 104번 상품 (한정 수량)
+재고: 15개
+총 요청: 426건 (10 VU, 10.2초)
+기대 결과: 성공 15건 + 실패(재고부족) 411건
+```
+
+https://github.com/user-attachments/assets/ef9220c8-2676-4fff-bfb7-1e846bc1bb68
+
+**5. 중복 이벤트 발행 (데이터 정합성)**
+
+```
+[중복 이벤트 처리 테스트]
+방법: 동일한 event_id를 가진 이벤트를 2회 생성해 Kinesis 샤드에 중복 발행
+총 발행: event_id 1개 기준 2건 (1건은 최초, 1건은 중복)
+기대 결과: 재고 차감 1건 성공(최초 이벤트) + 1건 무시(DUPLICATE, 중복 이벤트)
+```
+
+https://github.com/user-attachments/assets/2633eabd-d0c4-4a69-82cc-ab5a0ea10466
 
 ### 시나리오 파일
 
