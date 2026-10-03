@@ -6,19 +6,20 @@ Outbox Pattern과 Amazon Kinesis Data Streams로 주문 이벤트 유실을 방�
 
 ## 목차
 
-- 🛒 [프로젝트 소개](#프로젝트-소개)
-- 📐 [아키텍처](#아키텍처)
-- 🗄️ [데이터베이스 구성](#데이터베이스-구성)
-- ☸️ [Kubernetes 구성](#kubernetes-구성)
-- 🔐 [AWS 권한 관리](#aws-권한-관리)
-- 🚀 [CI/CD 및 GitOps](#cicd-및-gitops)
-- 📊 [모니터링](#모니터링)
-- 🧪 [테스트 및 검증 결과](#테스트-및-검증-결과)
-- 🛠️ [팀 및 기술 스택](#팀-및-기술-스택)
-- 🏁 [구현 범위 및 결론](#구현-범위-및-결론)
+- 🛒 [프로젝트 소개](#project-intro)
+- 📐 [아키텍처](#architecture)
+- 🗄️ [데이터베이스 구성](#database)
+- ☸️ [Kubernetes 구성](#kubernetes)
+- 🔐 [AWS 권한 관리](#aws-auth)
+- 🚀 [CI/CD 및 GitOps](#cicd)
+- 📊 [모니터링](#monitoring)
+- 🧪 [테스트 및 검증 결과](#test)
+- 🛠️ [팀 및 기술 스택](#team-stack)
+- 🏁 [구현 범위 및 결론](#conclusion)
 
 ---
 
+<a id="project-intro"></a>
 ## 🛒 프로젝트 소개
 
 | 목표 | 내용 |
@@ -34,6 +35,7 @@ Order API, Outbox Publisher, Inventory Worker는 서로 직접 호출하지 않�
 
 ---
 
+<a id="architecture"></a>
 ## 📐 아키텍처
 
 ![재깍 아키텍처](./assets/jaekkag_arc_v3.png)
@@ -56,6 +58,7 @@ Order API, Outbox Publisher, Inventory Worker는 서로 직접 호출하지 않�
 
 ---
 
+<a id="database"></a>
 ## 🗄️ 데이터베이스 구성
 
 Amazon RDS MySQL을 Private Subnet에 배치하고 외부에 공개하지 않았습니다.
@@ -209,6 +212,7 @@ Spike Test에서 RDS 연결 수가 `54/61`까지 증가하는 것을 확인하�
 
 ---
 
+<a id="kubernetes"></a>
 ## ☸️ Kubernetes 구성
 
 | 컴포넌트 | 리소스 | 실행 수 |
@@ -226,6 +230,7 @@ Spike Test에서 RDS 연결 수가 `54/61`까지 증가하는 것을 확인하�
 
 ---
 
+<a id="aws-auth"></a>
 ## 🔐 AWS 권한 관리
 
 | 방식 | 대상 | 내용 |
@@ -235,6 +240,7 @@ Spike Test에서 RDS 연결 수가 `54/61`까지 증가하는 것을 확인하�
 
 ---
 
+<a id="cicd"></a>
 ## 🚀 CI/CD 및 GitOps
 
 ![CI/CD 아키텍처](./assets/CICD_arc.png)
@@ -248,6 +254,7 @@ Spike Test에서 RDS 연결 수가 `54/61`까지 증가하는 것을 확인하�
 
 ---
 
+<a id="monitoring"></a>
 ## 📊 모니터링
 
 Helm `kube-prometheus-stack`(Prometheus, Grafana, Alertmanager, Operator, kube-state-metrics, Node Exporter)을 설치하고, ServiceMonitor로 3개 서비스의 메트릭을 15초 간격 수집합니다.
@@ -264,6 +271,7 @@ Helm `kube-prometheus-stack`(Prometheus, Grafana, Alertmanager, Operator, kube-s
 
 ---
 
+<a id="test"></a>
 ## 🧪 테스트 및 검증 결과
 
 k6 부하 테스트와 장애 주입으로 5가지 시나리오를 검증했습니다. (관측 가능성은 Grafana 대시보드로 별도 확인하여 이 5가지에서는 제외)
@@ -368,6 +376,7 @@ Spike Test의 최대 응답시간(977ms)은 평균(246ms) 대비 약 4배 벌어
 
 ---
 
+<a id="team-stack"></a>
 ## 🛠️ 팀 및 기술 스택
 
 ### 역할 분담
@@ -429,6 +438,7 @@ jaekkag/
 
 ---
 
+<a id="conclusion"></a>
 ## 🏁 구현 범위 및 결론
 
 **구현 및 검증 완료**: Terraform 기반 AWS/EKS 인프라, Transactional Outbox + Kinesis 3-Shard 비동기 처리, Inventory Worker 멱등성·조건부 차감, EKS Pod Identity/GitHub OIDC 기반 무키(no static key) 인증, GitHub Actions + Argo CD GitOps 자동 배포, HPA 오토스케일링, Prometheus/Grafana 통합 모니터링, 일반/Spike/재고부족/장애/중복 시나리오 End-to-End 검증.
