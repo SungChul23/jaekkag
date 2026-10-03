@@ -4,6 +4,8 @@
 
 Outbox Pattern과 Amazon Kinesis Data Streams로 주문 이벤트 유실을 방지하고, Inventory Worker의 멱등성 처리와 조건부 재고 차감으로 데이터 정합성을 보장합니다.
 
+[![Presentation](https://img.shields.io/badge/발표자료_보기-PDF-EA4335?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](./docs/jaekkag-presentation.pdf)
+
 ## 목차
 
 - 🛒 [프로젝트 소개](#project-intro)
